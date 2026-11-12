@@ -1,0 +1,13 @@
+## Interface: 16001
+## Title: Daylight |cffa335eeFishing|r
+## Notes: A DaylightUI plugin: Fishing Mode from a data text button. Equips your pole, sets the sound up for fishing, and puts your bait and a one-button cast under your character.
+## Author: Glowey
+## X-License: All Rights Reserved
+## Version: @project-version@
+## Dependencies: DaylightUI
+## SavedVariables: DaylightFishingDB
+
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Core.lua

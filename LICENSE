@@ -1,0 +1,20 @@
+Copyright (c) 2026 Glowey. All rights reserved.
+
+Daylight Fishing is free to download and play with. You may not copy, modify,
+redistribute, re-upload or reuse any part of it (code, art or layouts),
+in whole or in part, without written permission from the author.
+
+Daylight Fishing is a plugin for DaylightUI: it needs DaylightUI installed to run,
+and it holds no copies of DaylightUI's code or art. DaylightUI belongs to
+its author and keeps its own licence.
+
+Addons of your own are welcome, no permission needed: you may make, share
+and upload your own addon that runs alongside Daylight Fishing and uses what it
+offers in game. Your addon is your own work under your own licence. It
+must not include copies of Daylight Fishing's code or art, and needs Daylight Fishing
+installed to run.
+
+Exceptions: the bundled libraries (Libs) keep their own licences, listed in
+Libs/THIRD_PARTY_NOTICES.txt.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

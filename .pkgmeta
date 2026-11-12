@@ -1,0 +1,14 @@
+package-as: DaylightFishing
+
+# Kept in the repo, left out of the zip players download. LICENSE and AGENTS.md ship with it.
+ignore:
+  - README.md
+  - CHANGELOG.md
+  - .github
+  - .gitignore
+  - .gitattributes
+  - .pkgmeta
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
