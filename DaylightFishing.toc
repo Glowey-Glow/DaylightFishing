@@ -3,6 +3,7 @@
 ## Notes: A DaylightUI plugin: Fishing Mode from a data text button. Equips your pole, sets the sound up for fishing, and puts your bait and a one-button cast under your character.
 ## Author: Glowey
 ## X-License: All Rights Reserved
+## X-Curse-Project-ID: 1799572
 ## Version: @project-version@
 ## Dependencies: DaylightUI
 ## SavedVariables: DaylightFishingDB
