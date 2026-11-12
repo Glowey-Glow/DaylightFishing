@@ -7,7 +7,8 @@
 --        pole) and the cast button. One key casts, and hooks the fish once the bobber is out.
 --   off: the sound goes back to how you had it, the menu and the key are let go, and your
 --        weapons go back on. Taking the pole off yourself turns Fishing Mode off too (your
---        weapons are left as you put them).
+--        weapons are left as you put them), and putting one on turns it on (a setting).
+-- A button in its settings makes a "Fishing Mode" macro (/dui fish) with the Fishing icon.
 -- The settings are on its page in DaylightUI's options (Plugins). Built on DaylightUI.API only.
 
 local ADDON = ...
@@ -24,6 +25,7 @@ local me = API.For(ADDON)
 
 local DEFAULTS = {
 	key = "SPACE",
+	autoMode = true,
 	equipPole = true,
 	restoreWeapons = true,
 	sound = true,
@@ -217,7 +219,7 @@ local equipping = false     -- the pole is on its way on
 local channeling = false    -- a line is out
 
 local menu, cast, baitButtons = nil, nil, {}
-local UpdateBroker, UpdateMenu, UpdateCatch, RefreshPanel
+local UpdateBroker, UpdateMenu, UpdateCatch, RefreshPanel, UpdateSkill
 
 local function UpdateBinding()
 	if InCombatLockdown() then return end
@@ -238,6 +240,10 @@ end
 -- ---------------------------------------------------------------------------------------------
 
 local SIZE, CAST_SIZE, GAP, PAD = 32, 44, 6, 10
+-- The menu and the panels that open from it (the trainer box, the catch list) share one width;
+-- the menu only grows past it when its baits need the room, and the panels follow.
+local WIDTH = 300
+local SKILL_H = 30   -- the fishing skill row on top of the menu
 
 local function TextColor(name)
 	local c = API.Colors()[name] or API.Colors().VALUE
@@ -306,13 +312,45 @@ local function BuildMenu()
 	menu:SetPoint("CENTER", UIParent, "CENTER", 0, -190)
 	menu:Hide()
 
+	-- Fishing skill on top: a bar to this rank's cap, a mark where the next rank can be trained.
+	-- Click it: where to train next.
+	-- "Fishing Skill" on the left, "135 / 150" on the right, both in the same small label ink.
+	menu.skillText = API.Text(menu, "tiny", "LEFT")
+	menu.skillText:SetPoint("TOPLEFT", PAD, -9)
+	menu.skillMax = API.Text(menu, "tiny", "RIGHT")
+	menu.skillMax:SetPoint("TOPRIGHT", -PAD - 20, -9)
+	menu.skillBar = API.Bar(menu)
+	menu.skillBar:SetPoint("TOPLEFT", PAD, -25)
+	menu.skillBar:SetPoint("TOPRIGHT", -PAD, -25)
+	menu.skillBar:SetHeight(6)
+	menu.skillBar:SetMinMaxValues(0, 1)
+	menu.skillMark = menu.skillBar:CreateTexture(nil, "OVERLAY")
+	menu.skillMark:SetSize(2, 10)
+	menu.skillMark:Hide()
+	menu.skillBar:SetScript("OnSizeChanged", function() if UpdateSkill then UpdateSkill() end end)
+	menu.skillButton = CreateFrame("Button", nil, menu)
+	menu.skillButton:SetPoint("TOPLEFT", menu, "TOPLEFT", 4, -4)
+	menu.skillButton:SetPoint("BOTTOMRIGHT", menu, "TOPRIGHT", -26, -SKILL_H + 2)
+	menu.skillButton:SetScript("OnEnter", function(self)
+		menu.skillText:SetAlpha(0.8)
+		_G.DaylightFishing.SkillTooltip(self)
+	end)
+	menu.skillButton:SetScript("OnLeave", function()
+		menu.skillText:SetAlpha(1)
+		GameTooltip:Hide()
+	end)
+	menu.skillButton:SetScript("OnClick", function()
+		GameTooltip:Hide()
+		_G.DaylightFishing.ToggleTrainers()
+	end)
+
 	menu.title = API.Text(menu, "small", "LEFT")
-	menu.title:SetPoint("TOPLEFT", PAD, -8)
+	menu.title:SetPoint("TOPLEFT", PAD, -8 - SKILL_H)
 	menu.title:SetText("Fishing Mode")
 	menu.title:SetTextColor(API.Accent())
 
 	menu.lure = API.Text(menu, "tiny", "RIGHT")
-	menu.lure:SetPoint("TOPRIGHT", -PAD - 22, -9)
+	menu.lure:SetPoint("TOPRIGHT", -PAD, -9 - SKILL_H)
 
 	menu.close = API.Close(menu, function()
 		if InCombatLockdown() then
@@ -325,10 +363,11 @@ local function BuildMenu()
 	cast = IconButton("DaylightFishingCast", menu, CAST_SIZE, function()
 		GameTooltip:SetText("Cast")
 		local key = KeyText()
+		local r, g, b = TextColor("TEXT")
 		if key then
-			GameTooltip:AddLine("Press " .. key .. " to cast, then " .. key .. " again to hook the fish.", TextColor("TEXT"))
+			GameTooltip:AddLine(key .. " casts, and hooks the fish.", r, g, b)
 		else
-			GameTooltip:AddLine("Pick a key on Daylight Fishing's options page to fish with one key.", TextColor("TEXT"))
+			GameTooltip:AddLine("Pick a fishing key in the options to fish with one key.", r, g, b, true)
 		end
 	end)
 	cast:SetAttribute("type", "macro")
@@ -416,7 +455,7 @@ function UpdateMenu()
 	menu:SetScale(Get("menuScale") or 1)
 	local baits = BaitsInBags()
 	local x = PAD
-	local top = -26
+	local top = -26 - SKILL_H
 	for i, bait in ipairs(baits) do
 		local b = BaitButton(i)
 		b.itemID = bait.id
@@ -445,7 +484,8 @@ function UpdateMenu()
 	cast.key:SetText(KeyText() or "")
 	cast.state:SetText(channeling and "Hook" or "Cast")
 	UpdateCatch()
-	local width = math.max(x + CAST_SIZE + PAD, 180)
+	UpdateSkill()
+	local width = math.max(x + CAST_SIZE + PAD, WIDTH)
 	menu:SetSize(width, -top + CAST_SIZE + 26)
 	API.Skin(menu, { window = true })
 end
@@ -690,6 +730,54 @@ function Fishing.IsActive()
 	return active
 end
 
+-- A "Fishing Mode" macro (/dui fish) with the Fishing icon, made or brought up to date, and put on
+-- the cursor to drop on an action bar. An account macro when there's room, else this character's.
+local MACRO_NAME = "Fishing Mode"
+local MACRO_BODY = "/dui fish"
+
+-- The Fishing icon as a macro takes it: a file id (the spell's), else the icon's name.
+local function MacroIcon()
+	local icon = FishingIcon()
+	if type(icon) == "number" then return icon end
+	if GetFileIDFromPath then
+		local id = GetFileIDFromPath(POLE_ICON)
+		if id then return id end
+	end
+	return "Trade_Fishing"
+end
+
+function Fishing.MakeMacro()
+	if InCombatLockdown() then
+		Print("Macros can't be made in a fight.")
+		return
+	end
+	local icon = MacroIcon()
+	local index = GetMacroIndexByName(MACRO_NAME)
+	local made = false
+	if index and index > 0 then
+		EditMacro(index, MACRO_NAME, icon, MACRO_BODY)
+	else
+		local account, perChar = GetNumMacros()
+		local maxAccount = MAX_ACCOUNT_MACROS or 120
+		local maxChar = MAX_CHARACTER_MACROS or 18
+		if (account or 0) < maxAccount then
+			index = CreateMacro(MACRO_NAME, icon, MACRO_BODY, false)
+		elseif (perChar or 0) < maxChar then
+			index = CreateMacro(MACRO_NAME, icon, MACRO_BODY, true)
+		else
+			Print("Your macros are full: delete one and try again.")
+			return
+		end
+		made = true
+	end
+	if not index or index <= 0 then
+		Print("The macro couldn't be made.")
+		return
+	end
+	PickupMacro(index)
+	Print((made and "Made" or "Updated") .. " the \"Fishing Mode\" macro. It's on your cursor: drop it on an action bar (it's in your macros too).")
+end
+
 -- ---------------------------------------------------------------------------------------------
 -- The data text
 -- ---------------------------------------------------------------------------------------------
@@ -747,7 +835,7 @@ end
 -- ---------------------------------------------------------------------------------------------
 
 local panel
-local ROW, MAX_ROWS, PANEL_WIDTH = 20, 25, 240
+local ROW, MAX_ROWS = 20, 25
 
 local function PanelRow(i)
 	local row = panel.rows[i]
@@ -821,7 +909,7 @@ function RefreshPanel()
 	end
 	panel.empty:ClearAllPoints()
 	panel.empty:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, top - shown * ROW - 2)
-	panel:SetSize(PANEL_WIDTH, -bottom + 38)
+	panel:SetSize(math.max(WIDTH, math.floor(menu:GetWidth() + 0.5)), -bottom + 38)
 	API.Skin(panel, { window = true })
 end
 
@@ -856,6 +944,426 @@ function Fishing.ToggleCatchPanel(show)
 	if not panel then return end
 	if show == nil then show = not panel:IsShown() end
 	panel:SetShown(show)
+end
+
+-- ---------------------------------------------------------------------------------------------
+-- Fishing skill and where to train the next rank
+-- ---------------------------------------------------------------------------------------------
+
+-- How each rank is learned, from Wowhead's WoW: Forever pages (checked 2026-11-12): Apprentice and
+-- Journeyman from any fishing trainer, Expert from a book sold in Booty Bay, Artisan from Nat
+-- Pagle's quest in Dustwallow Marsh. trainAt is the fishing skill a rank can be learned at, level
+-- the character level it asks for (nil where the page doesn't say; Journeyman's 50 is the game's
+-- usual "25 before your cap").
+local TOP_CAP = 300
+local RANKS = {
+	{ name = "Apprentice", cap = 75, trainAt = 0, how = "trainer" },
+	{ name = "Journeyman", cap = 150, trainAt = 50, how = "trainer" },
+	{ name = "Expert", cap = 225, trainAt = 125, level = 20, how = "book",
+	  item = 16083, itemName = "Expert Fishing - The Bass and You", price = 10000, who = "Old Man Heming",
+	  spot = { map = 1434, x = 27.4, y = 77.0, zone = "Booty Bay" } },
+	{ name = "Artisan", cap = 300, trainAt = 225, level = 35, how = "quest",
+	  quest = 6607, questName = "Nat Pagle, Angler Extreme", who = "Nat Pagle",
+	  spot = { map = 1445, x = 58.6, y = 60.0, zone = "Dustwallow Marsh" } },
+}
+
+-- The fishing trainers (Apprentice and Journeyman), from the same pages. side: "A", "H", or nil for
+-- neutral. map: the zone's map; Riverglades (a Forever zone) is found by name in the game's own map
+-- list, since its map number isn't written anywhere we have.
+local TRAINERS = {
+	{ name = "Androl Oakhand", side = "A", map = 1438, x = 56.0, y = 93.6, zone = "Rut'theran Village" },
+	{ name = "Arnold Leland", side = "A", map = 1453, x = 55.0, y = 69.6, zone = "Stormwind" },
+	{ name = "Astaia", side = "A", map = 1457, x = 47.6, y = 56.6, zone = "Darnassus" },
+	{ name = "Brannock", side = "A", map = 1444, x = 32.2, y = 41.6, zone = "Feathermoon Stronghold" },
+	{ name = "Donald Rabonne", side = "A", map = 1424, x = 50.6, y = 61.0, zone = "Southshore" },
+	{ name = "Grimnur Stonebrand", side = "A", map = 1455, x = 48.4, y = 6.4, zone = "Ironforge" },
+	{ name = "Harold Riggs", side = "A", map = 1437, x = 8.2, y = 58.6, zone = "Menethil Harbor" },
+	{ name = "Lee Brown", side = "A", map = 1429, x = 47.6, y = 62.2, zone = "Goldshire" },
+	{ name = "Matthew Hooper", side = "A", map = 1433, x = 26.8, y = 50.4, zone = "Lakeshire" },
+	{ name = "Paxton Ganter", side = "A", map = 1426, x = 35.6, y = 40.4, zone = "Brewnall Village" },
+	{ name = "Warg Deepwater", side = "A", map = 1432, x = 40.6, y = 39.6, zone = "Thelsamar" },
+	{ name = "Armand Cromwell", side = "H", map = 1458, x = 80.8, y = 31.2, zone = "Undercity" },
+	{ name = "Clyde Kellen", side = "H", map = 1420, x = 67.2, y = 51.0, zone = "Brightwater Lake" },
+	{ name = "Kah Mistrunner", side = "H", map = 1456, x = 56.0, y = 46.8, zone = "Thunder Bluff" },
+	{ name = "Katoom the Angler", side = "H", map = 1425, x = 80.2, y = 81.4, zone = "Revantusk Village" },
+	{ name = "Kil'Hiwana", side = "H", map = 1440, x = 10.8, y = 33.6, zone = "Ashenvale" },
+	{ name = "Lau'Tiki", side = "H", map = 1411, x = 53.2, y = 81.6, zone = "Sen'jin Village" },
+	{ name = "Lui'Mala", side = "H", map = 1443, x = 22.6, y = 72.6, zone = "Shadowprey Village" },
+	{ name = "Lumak", side = "H", map = 1454, x = 69.8, y = 29.6, zone = "Orgrimmar" },
+	{ name = "Uthan Stillwater", side = "H", map = 1412, x = 44.6, y = 60.6, zone = "Bloodhoof Village" },
+	{ name = "Myizz Luckycatch", map = 1434, x = 27.6, y = 77.0, zone = "Booty Bay" },
+	{ name = "Fenn Fairweather", map = 2521, x = 45.0, y = 48.4, zone = "Shen'dar Village" },
+	{ name = "Baelann Swiftcurrent", map = 2521, x = 63.2, y = 75.6, zone = "Valanaar" },
+	{ name = "Krix", find = "Riverglades", x = 79.2, y = 54.6, zone = "Powderfuse Port" },
+}
+
+-- skill, cap (nil, nil when Fishing isn't learned).
+local function FishingSkill()
+	if GetProfessions and GetProfessionInfo then
+		local _, _, _, fishing = GetProfessions()
+		if fishing then
+			local _, _, rank, cap = GetProfessionInfo(fishing)
+			if type(rank) == "number" then return rank, cap end
+		end
+	end
+	if GetNumSkillLines and GetSkillLineInfo then
+		local want = FishingName()
+		for i = 1, GetNumSkillLines() do
+			local name, header, _, rank, _, _, cap = GetSkillLineInfo(i)
+			if not header and name == want then return rank, cap end
+		end
+	end
+end
+
+-- The next rank (a RANKS entry), nil at the top.
+local function NextRank(skill, cap)
+	if not skill then return RANKS[1] end
+	for _, rank in ipairs(RANKS) do
+		if rank.cap > (cap or 0) then return rank end
+	end
+end
+
+-- Whether the next rank can be learned now (skill, and level where it asks).
+local function CanLearn(rank, skill)
+	if not rank then return false end
+	if (skill or 0) < rank.trainAt then return false end
+	return not rank.level or (UnitLevel("player") or 0) >= rank.level
+end
+
+function UpdateSkill()
+	if not menu or not menu.skillBar then return end
+	local skill, cap = FishingSkill()
+	local bar, mark = menu.skillBar, menu.skillMark
+	if not skill then
+		menu.skillText:SetText("Fishing Skill")
+		menu.skillText:SetTextColor(TextColor("LABEL"))
+		menu.skillMax:SetText("not learned")
+		menu.skillMax:SetTextColor(TextColor("LABEL"))
+		bar:SetMinMaxValues(0, 1)
+		bar:SetValue(0)
+		mark:Hide()
+		return
+	end
+	-- At the top rank there's nothing left to train: it says so instead.
+	menu.skillText:SetText((cap and cap >= TOP_CAP) and "Maximum Fishing Trained" or "Fishing Skill")
+	menu.skillText:SetTextColor(TextColor("LABEL"))
+	menu.skillMax:SetText(skill .. " / " .. (cap or skill))
+	menu.skillMax:SetTextColor(TextColor("LABEL"))
+	bar:SetMinMaxValues(0, math.max(1, cap or skill))
+	bar:SetValue(skill)
+	local rank = NextRank(skill, cap)
+	local width = bar:GetWidth()
+	if rank and cap and cap > 0 and rank.trainAt <= cap and type(width) == "number" and width > 0 then
+		mark:ClearAllPoints()
+		mark:SetPoint("CENTER", bar, "LEFT", math.min(width - 1, width * rank.trainAt / cap), 0)
+		mark:SetColorTexture(TextColor(CanLearn(rank, skill) and "GOOD" or "VALUE"))
+		mark:Show()
+	else
+		mark:Hide()
+	end
+end
+
+-- An amount of money as plain short text: "1g", "1g 50s", "75s".
+local function MoneyText(copper)
+	local g, s, c = math.floor(copper / 10000), math.floor(copper % 10000 / 100), copper % 100
+	local parts = {}
+	if g > 0 then parts[#parts + 1] = g .. "g" end
+	if s > 0 then parts[#parts + 1] = s .. "s" end
+	if c > 0 or #parts == 0 then parts[#parts + 1] = c .. "c" end
+	return table.concat(parts, " ")
+end
+
+-- A rank's heading: "Expert Fishing - Up to 225".
+local function RankTitle(rank)
+	return ("%s Fishing - Up to %d"):format(rank.name, rank.cap)
+end
+
+-- What the next rank takes, short: where to get it, then the skill it's usable at. The level only
+-- when you're under it.
+local function HowText(rank)
+	local text
+	if rank.how == "book" then
+		text = ("Purchase \"%s\" from %s in %s for %s."):format(rank.itemName, rank.who, rank.spot.zone, MoneyText(rank.price))
+	elseif rank.how == "quest" then
+		text = ("Complete \"%s\" from %s in %s."):format(rank.questName, rank.who, rank.spot.zone)
+	else
+		text = "Train with any fishing trainer."
+	end
+	-- The book is usable at a skill, a trainer's rank trainable at it, the quest obtainable at it
+	-- (with its level, which it always names).
+	if rank.how == "quest" then
+		text = text .. (" Obtainable at %d Fishing and Level %d."):format(rank.trainAt, rank.level)
+		return text
+	elseif rank.trainAt > 0 then
+		text = text .. ((rank.how == "book" and " Usable at %d Fishing." or " Trainable at %d Fishing.")):format(rank.trainAt)
+	end
+	if rank.level and (UnitLevel("player") or 0) < rank.level then
+		text = text .. (" Needs level %d."):format(rank.level)
+	end
+	return text
+end
+
+-- Kept short: the next rank as the title, what it takes (wrapped), whether you can learn it, the
+-- click. The skill itself is on the bar already.
+function Fishing.SkillTooltip(owner)
+	local skill, cap = FishingSkill()
+	local rank = NextRank(skill, cap)
+	GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+	if not rank then
+		GameTooltip:SetText("Fishing - Maximum Trained")
+		GameTooltip:Show()
+		return
+	end
+	GameTooltip:SetText(RankTitle(rank))
+	-- (Colours are passed apart: a call that returns three values only gives its first when another
+	-- argument follows it.)
+	local r, g, b = TextColor("TEXT")
+	GameTooltip:AddLine(HowText(rank), r, g, b, true)
+	if CanLearn(rank, skill) then
+		r, g, b = TextColor("GOOD")
+		GameTooltip:AddLine("You can learn it now.", r, g, b)
+	end
+	r, g, b = TextColor("OFF")
+	GameTooltip:AddLine("Click: where to go", r, g, b)
+	GameTooltip:Show()
+end
+
+-- ---------------------------------------------------------------------------------------------
+-- The box: where to learn the next rank, closest first
+-- ---------------------------------------------------------------------------------------------
+
+local box
+local RefreshBox
+
+-- A zone found by name (once) in the game's map list: Azeroth, Kalimdor, the Eastern Kingdoms.
+local foundMaps = {}
+local function MapOf(spot)
+	if spot.map then return spot.map end
+	local want = spot.find
+	if not want then return nil end
+	if foundMaps[want] ~= nil then return foundMaps[want] or nil end
+	local id = false
+	local zone = Enum and Enum.UIMapType and Enum.UIMapType.Zone
+	for _, root in ipairs({ 1415, 1414, 947 }) do
+		local ok, kids = pcall(C_Map.GetMapChildrenInfo, root, zone, true)
+		for _, m in ipairs(ok and type(kids) == "table" and kids or {}) do
+			if m.name == want then id = m.mapID break end
+		end
+		if id then break end
+	end
+	foundMaps[want] = id
+	return id or nil
+end
+
+-- Where you are, in world terms: continent, x, y.
+local function Here()
+	local map = C_Map.GetBestMapForUnit("player")
+	local pos = map and C_Map.GetPlayerMapPosition(map, "player")
+	if not pos then return nil end
+	local continent, world = C_Map.GetWorldPosFromMapPos(map, pos)
+	if not continent or not world then return nil end
+	return continent, world.x, world.y
+end
+
+-- Yards between you and a spot, or nil when it's on another continent (or its map isn't known).
+local function Distance(spot, continent, px, py)
+	local map = MapOf(spot)
+	if not map or not continent or not CreateVector2D then return nil end
+	local c, world = C_Map.GetWorldPosFromMapPos(map, CreateVector2D(spot.x / 100, spot.y / 100))
+	if c ~= continent or not world then return nil end
+	return math.sqrt((world.x - px) ^ 2 + (world.y - py) ^ 2)
+end
+
+local function Waypoint(name, spot)
+	local map = MapOf(spot)
+	local where = ("%s, %s (%d, %d)"):format(name, spot.zone, spot.x + 0.5, spot.y + 0.5)
+	if not map then
+		Print(where .. ".")
+		return false
+	end
+	local tomtom = _G.TomTom
+	if type(tomtom) == "table" and type(tomtom.AddWaypoint) == "function" then
+		pcall(tomtom.AddWaypoint, tomtom, map, spot.x / 100, spot.y / 100, { title = name, from = "Daylight Fishing" })
+	elseif C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
+		if C_Map.CanSetUserWaypointOnMap and not C_Map.CanSetUserWaypointOnMap(map) then
+			Print(where .. ". The map there takes no pins.")
+			return false
+		end
+		pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(map, spot.x / 100, spot.y / 100))
+		if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
+	end
+	Print("Waypoint: " .. where .. ".")
+	return true
+end
+
+local BOX_ROWS, BOX_ROW = 8, 30
+
+-- A pin went down: the box's bottom line says so, in green, for a few seconds (RefreshBox reads
+-- pinnedUntil, so a redraw in between keeps it).
+local PINNED_FOR = 3
+local pinnedUntil = 0
+local function ShowPinned()
+	pinnedUntil = GetTime() + PINNED_FOR
+	RefreshBox()
+	C_Timer.After(PINNED_FOR + 0.05, function() RefreshBox() end)
+end
+
+local function BoxRow(i)
+	local row = box.rows[i]
+	if row then return row end
+	row = CreateFrame("Button", nil, box)
+	row:SetHeight(BOX_ROW)
+	row:SetFrameLevel(box:GetFrameLevel() + 10)
+	row.name = API.Text(row, "small", "LEFT")
+	row.name:SetPoint("TOPLEFT", 0, -2)
+	row.dist = API.Text(row, "small", "RIGHT")
+	row.dist:SetPoint("TOPRIGHT", 0, -2)
+	row.name:SetPoint("RIGHT", row.dist, "LEFT", -6, 0)
+	row.name:SetWordWrap(false)
+	row.place = API.Text(row, "tiny", "LEFT")
+	row.place:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -3)
+	row.place:SetPoint("RIGHT", 0, 0)
+	row.place:SetWordWrap(false)
+	local hl = row:CreateTexture(nil, "HIGHLIGHT")
+	hl:SetAllPoints()
+	hl:SetColorTexture(1, 1, 1, 0.06)
+	row:SetScript("OnEnter", function(self)
+		if not self.spot then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		if self.item then
+			GameTooltip:SetItemByID(self.item)
+			GameTooltip:AddLine(("Sold by %s, %s (%d, %d)"):format(self.who, self.spot.zone, self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
+		else
+			GameTooltip:SetText(self.who)
+			GameTooltip:AddLine(("%s (%d, %d)"):format(self.spot.zone, self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
+		end
+		GameTooltip:AddLine("Click for a waypoint.", TextColor("LABEL"))
+		GameTooltip:Show()
+	end)
+	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	row:SetScript("OnClick", function(self)
+		if self.spot and Waypoint(self.who, self.spot) then ShowPinned() end
+	end)
+	box.rows[i] = row
+	return row
+end
+
+-- Your faction's trainers and the neutral ones.
+local function Allowed(side)
+	if not side then return true end
+	return side == (UnitFactionGroup("player") == "Horde" and "H" or "A")
+end
+
+local SIDE_WORDS = { A = "Alliance", H = "Horde" }
+
+local function YardsText(d)
+	return d and (math.floor(d / 10 + 0.5) * 10 .. " yd") or ""
+end
+
+function RefreshBox()
+	if not box or not box:IsShown() then return end
+	local skill, cap = FishingSkill()
+	local rank = NextRank(skill, cap)
+	local continent, px, py = Here()
+	-- The places to go: the closest trainers, or the one seller or quest giver.
+	local list = {}
+	if not rank then
+		box.title:SetText("Fishing - Maximum Trained")
+		box.sub:SetText("You have the highest rank of Fishing.")
+	elseif rank.how == "trainer" then
+		box.title:SetText(RankTitle(rank))
+		box.sub:SetText(HowText(rank))
+		for _, t in ipairs(TRAINERS) do
+			if Allowed(t.side) then
+				list[#list + 1] = { who = t.name, spot = t, dist = Distance(t, continent, px, py),
+					side = SIDE_WORDS[t.side] or "Neutral" }
+			end
+		end
+		table.sort(list, function(a, b)
+			if a.dist and b.dist then return a.dist < b.dist end
+			if a.dist or b.dist then return a.dist ~= nil end
+			if a.spot.zone ~= b.spot.zone then return a.spot.zone < b.spot.zone end
+			return a.who < b.who
+		end)
+	else
+		box.title:SetText(RankTitle(rank))
+		box.sub:SetText(HowText(rank))
+		list[1] = { who = rank.who, spot = rank.spot, dist = Distance(rank.spot, continent, px, py),
+			item = rank.item }
+	end
+	-- As wide as the menu under it. The width goes on first, so the wrapped text is measured at it.
+	local width = math.max(WIDTH, math.floor(menu:GetWidth() + 0.5))
+	box:SetWidth(width)
+	box.sub:SetWidth(width - PAD * 2 - 16)
+	local top = -8 - math.ceil(box.title:GetStringHeight()) - 4 - math.ceil(box.sub:GetStringHeight()) - 10
+	local shown = math.min(#list, BOX_ROWS)
+	for i = 1, shown do
+		local e, row = list[i], BoxRow(i)
+		row.who, row.spot, row.item = e.who, e.spot, e.item
+		row.name:SetText(e.who)
+		row.name:SetTextColor(TextColor("VALUE"))
+		row.dist:SetText(YardsText(e.dist))
+		row.dist:SetTextColor(TextColor("LABEL"))
+		local place = ("%s (%d, %d)"):format(e.spot.zone, e.spot.x + 0.5, e.spot.y + 0.5)
+		row.place:SetText(e.side and (place .. "  ·  " .. e.side) or place)
+		row.place:SetTextColor(API.Accent())
+		row:ClearAllPoints()
+		row:SetPoint("TOPLEFT", box, "TOPLEFT", PAD, top - (i - 1) * (BOX_ROW + 4))
+		row:SetPoint("RIGHT", box, "RIGHT", -PAD, 0)
+		row:Show()
+	end
+	for i = shown + 1, #box.rows do box.rows[i]:Hide() end
+	local bottom = top - shown * (BOX_ROW + 4) + (shown > 0 and 4 or 6)
+	box.note:SetTextColor(TextColor("OFF"))
+	if GetTime() < pinnedUntil then
+		box.note:SetText("Location Pinned")
+		box.note:SetTextColor(TextColor("GOOD"))
+	elseif not rank then
+		box.note:SetText("")
+	elseif rank.how == "trainer" then
+		box.note:SetText(#list == 0 and "No fishing trainer found for your faction." or "Closest first. Click one for a waypoint.")
+	else
+		box.note:SetText("Click for a waypoint.")
+	end
+	box.note:ClearAllPoints()
+	box.note:SetPoint("TOPLEFT", box, "TOPLEFT", PAD, bottom - 4)
+	box.note:SetPoint("RIGHT", box, "RIGHT", -PAD, 0)
+	if box.note:GetText() and box.note:GetText() ~= "" then
+		bottom = bottom - 4 - math.ceil(box.note:GetStringHeight())
+	end
+	box:SetHeight(-bottom + 10)
+	API.Skin(box, { window = true })
+end
+
+local function BuildBox()
+	if box or not menu then return end
+	box = CreateFrame("Frame", "DaylightFishingTrainers", menu)
+	box:SetPoint("BOTTOMLEFT", menu, "TOPLEFT", 0, 6)
+	box:SetClampedToScreen(true)
+	box:EnableMouse(true)
+	box:Hide()
+	box.rows = {}
+	box.title = API.Text(box, "small", "LEFT")
+	box.title:SetPoint("TOPLEFT", PAD, -8)
+	box.title:SetTextColor(API.Accent())
+	box.sub = API.Text(box, "tiny", "LEFT")
+	box.sub:SetPoint("TOPLEFT", box.title, "BOTTOMLEFT", 0, -4)
+	box.sub:SetPoint("RIGHT", box, "RIGHT", -PAD - 16, 0)
+	box.sub:SetJustifyH("LEFT")
+	box.sub:SetWordWrap(true)
+	box.sub:SetTextColor(TextColor("TEXT"))
+	box.close = API.Close(box, function() box:Hide() end, 14)
+	box.close:SetPoint("TOPRIGHT", -8, -7)
+	box.note = API.Text(box, "tiny", "LEFT")
+	box.note:SetTextColor(TextColor("OFF"))
+	box:SetScript("OnShow", RefreshBox)
+end
+
+function Fishing.ToggleTrainers(show)
+	BuildBox()
+	if not box then return end
+	if show == nil then show = not box:IsShown() end
+	box:SetShown(show)
 end
 
 -- The catch's lines on a tooltip: the count, then what came up, the most first.
@@ -1057,7 +1565,6 @@ if LDB then
 			if active and left then tip:AddLine(string.format("Bait on the pole: %d:%02d", left / 60, left % 60), 1, 1, 1) end
 			tip:AddLine(" ")
 			Fishing.CatchTooltip(tip)
-			tip:AddLine(" ")
 			tip:AddLine("Click: turn Fishing Mode " .. (active and "off" or "on"), 0.8, 0.8, 0.8)
 			tip:AddLine("Shift-right-click: clear this session's catch", 0.8, 0.8, 0.8)
 		end,
@@ -1080,6 +1587,8 @@ events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("UI_ERROR_MESSAGE")
 events:RegisterEvent("UI_INFO_MESSAGE")
 events:RegisterEvent("PLAYER_STARTED_MOVING")
+events:RegisterEvent("SKILL_LINES_CHANGED")
+events:RegisterEvent("CHAT_MSG_SKILL")
 events:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
@@ -1168,7 +1677,16 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 		for i = 1, #list do pcall(list[i]) end
 		UpdateBinding()
 	elseif event == "PLAYER_EQUIPMENT_CHANGED" then
-		if a ~= 16 or not active then return end
+		if a ~= 16 then return end
+		if not active then
+			-- A pole put on by hand turns Fishing Mode on (after a fight, if it's still in hand).
+			if Get("autoMode") and char and PoleEquipped() then
+				OutOfCombat(function()
+					if not active and PoleEquipped() then Enter(true) end
+				end)
+			end
+			return
+		end
 		if PoleEquipped() then
 			equipping = false
 		elseif not equipping then
@@ -1204,6 +1722,10 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 				end)
 			end
 		end
+	elseif event == "SKILL_LINES_CHANGED" or event == "CHAT_MSG_SKILL" then
+		-- A skill point or a new rank: the bar, its mark and the trainer box follow.
+		if menu and menu:IsShown() then UpdateSkill() end
+		if RefreshBox then RefreshBox() end
 	elseif event == "PLAYER_STARTED_MOVING" then
 		if channeling then castMoved = true end
 	elseif event == "UNIT_SPELLCAST_SENT" then
@@ -1239,6 +1761,10 @@ local pages = {
 	  groups = {
 		{ label = "Fishing Mode", items = {
 			{ type = "button", label = "Turn Fishing Mode on or off", func = function() Fishing.Toggle() end },
+			{ type = "button", label = "Make a Fishing Mode macro", func = function() Fishing.MakeMacro() end,
+			  desc = "A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and off. It goes on your cursor: drop it on an action bar." },
+			{ type = "toggle", key = "autoMode", label = "Turn on when I equip a pole",
+			  desc = "Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off." },
 			{ type = "dropdown", key = "key", label = "Fishing key", values = KEYS,
 			  desc = "While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts." },
 			{ type = "button", label = "Clear this session's catch", func = function() Fishing.ResetCatch() end },

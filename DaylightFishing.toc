@@ -6,6 +6,7 @@
 ## X-Curse-Project-ID: 1799572
 ## Version: @project-version@
 ## Dependencies: DaylightUI
+## OptionalDeps: TomTom
 ## SavedVariables: DaylightFishingDB
 
 Libs\LibStub\LibStub.lua

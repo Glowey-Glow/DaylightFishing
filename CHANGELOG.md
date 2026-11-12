@@ -1,5 +1,10 @@
 # Daylight Fishing
 
+## 1.6.0
+- New: Fishing Skill on top of the fishing menu, with a bar to your rank's cap and a mark where the next rank can be learned (bright once you can). "Maximum Fishing Trained" once you have Artisan. Hover it for what the next rank takes; click it for where to go: the closest fishing trainers for Apprentice and Journeyman (your faction's and neutral, nearest first with how far), Old Man Heming in Booty Bay for the Expert book (1 gold, Fishing 125, level 20), or Nat Pagle in Dustwallow Marsh for the Artisan quest (Fishing 225, level 35). Each is a waypoint on click (TomTom when it's installed). Trainer and rank data from Wowhead's WoW: Forever pages; no other addon needed.
+- New: "Make a Fishing Mode macro" in the settings. It makes a "Fishing Mode" macro with the Fishing icon (or brings yours up to date) and puts it on your cursor to drop on an action bar.
+- New: putting a fishing pole on turns Fishing Mode on (taking it off already turned it off). A switch in the settings, on to start.
+
 ## 1.5.0
 - Fishing Mode is remembered per character.
 - Weapons go back into their own slots when Fishing Mode ends (dual wield and off-hands too).
