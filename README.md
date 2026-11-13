@@ -41,4 +41,4 @@ What's new in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-Copyright (c) 2026 Glowey. All rights reserved. Free to download and play with; see [LICENSE](LICENSE). The bundled libraries keep their own licences (Libs/THIRD_PARTY_NOTICES.txt).
+Copyright (c) 2026 Glowey. All rights reserved. Free to download and play with; see [LICENSE](LICENSE). The bundled libraries keep their own licenses (Libs/THIRD_PARTY_NOTICES.txt).

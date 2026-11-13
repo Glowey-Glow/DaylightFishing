@@ -1138,7 +1138,7 @@ function Fishing.SkillTooltip(owner)
 		return
 	end
 	GameTooltip:SetText(RankTitle(rank))
-	-- (Colours are passed apart: a call that returns three values only gives its first when another
+	-- (Colors are passed apart: a call that returns three values only gives its first when another
 	-- argument follows it.)
 	local r, g, b = TextColor("TEXT")
 	GameTooltip:AddLine(HowText(rank), r, g, b, true)
