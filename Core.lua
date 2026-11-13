@@ -46,11 +46,28 @@ local DEFAULTS = {
 	menuScale = 1,
 }
 
+-- Read once and kept until a setting of ours changes: the quiet screen asks several of them every
+-- frame while you fish. Nothing is kept before login (the settings aren't there yet).
+local settings, settingsReady = {}, false
+local NONE = {}
 local function Get(path)
+	local v = settings[path]
+	if v ~= nil then
+		if v == NONE then return nil end
+		return v
+	end
 	local ok, value = pcall(API.GetSetting, ADDON, path)
-	if ok and value ~= nil then return value end
-	return DEFAULTS[path]
+	if not ok or value == nil then value = DEFAULTS[path] end
+	if settingsReady then settings[path] = value == nil and NONE or value end
+	return value
 end
+me.On("Login", function()
+	settingsReady = true
+	wipe(settings)
+end)
+me.On("SettingChanged", function(scope)
+	if scope == ADDON then wipe(settings) end
+end)
 
 local db, char     -- DaylightFishingDB (account), and this character's part of it
 
@@ -548,18 +565,24 @@ local function DropAll()
 	liftedOn = false
 end
 
+-- The frames' names, made once (LiftAll runs four times a second while the UI is faded).
+local POPUP_NAMES, CHAT_NAMES, BAG_NAMES = {}, {}, {}
+for i = 1, 4 do POPUP_NAMES[i] = "StaticPopup" .. i end
+for i = 1, NUM_CHAT_WINDOWS or 10 do
+	CHAT_NAMES[#CHAT_NAMES + 1] = "ChatFrame" .. i
+	CHAT_NAMES[#CHAT_NAMES + 1] = "ChatFrame" .. i .. "EditBox"
+	CHAT_NAMES[#CHAT_NAMES + 1] = "ChatFrame" .. i .. "Tab"
+end
+for i = 1, 13 do BAG_NAMES[i] = "ContainerFrame" .. i end
+
 local function LiftAll()
 	liftedOn = true
 	Lift(GameTooltip)
 	Lift(LootFrame)
-	for i = 1, 4 do Lift(_G["StaticPopup" .. i]) end
+	for i = 1, #POPUP_NAMES do Lift(_G[POPUP_NAMES[i]]) end
 	if Get("keepMinimap") ~= false then Lift(Holder(_G.Minimap)) end
 	if Get("keepChat") ~= false then
-		for i = 1, NUM_CHAT_WINDOWS or 10 do
-			Lift(Holder(_G["ChatFrame" .. i]))
-			Lift(Holder(_G["ChatFrame" .. i .. "EditBox"]))
-			Lift(Holder(_G["ChatFrame" .. i .. "Tab"]))
-		end
+		for i = 1, #CHAT_NAMES do Lift(Holder(_G[CHAT_NAMES[i]])) end
 		Lift(Holder(_G.GeneralDockManager))
 	end
 	-- Your bags and bank: DaylightUI's windows and the game's, open now or opened later.
@@ -567,7 +590,7 @@ local function LiftAll()
 	Lift(_G.DaylightUIBank)
 	Lift(_G.ContainerFrameCombinedBags)
 	Lift(_G.BankFrame)
-	for i = 1, 13 do Lift(_G["ContainerFrame" .. i]) end
+	for i = 1, #BAG_NAMES do Lift(_G[BAG_NAMES[i]]) end
 end
 
 local function SetFade(p)
