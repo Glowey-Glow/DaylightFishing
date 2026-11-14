@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.2
+- All text in American English (gray, color and the like), in the game and in the docs.
+
 ## 1.6.1
 - Lighter while fishing: settings are read once and kept until they change (the quiet screen asked for several every frame), and the frames it keeps visible are no longer looked up by building their names four times a second.
 
