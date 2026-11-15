@@ -4,6 +4,7 @@ package-as: DaylightFishing
 ignore:
   - README.md
   - CHANGELOG.md
+  - CURSEFORGE.md
   - .github
   - .gitignore
   - .gitattributes
