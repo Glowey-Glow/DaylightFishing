@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.6
+- Pulled into a fight while fishing: no more "blocked action" error. Your main hand still goes on at once; the off hand, which the game won't let an addon equip during a fight, goes on as the fight ends.
+
 ## 1.6.5
 - On German, French, Spanish, Russian, Korean and Chinese clients, words the game already translates (like Fishing, Fishing Skill and Off) use the game's own translation instead of our draft.
 

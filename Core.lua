@@ -796,8 +796,17 @@ local function Leave(reason)
 	local weapons = char.weapons
 	char.weapons = nil
 	if reason == "combat" and type(weapons) == "table" then
+		-- (PLAYER_REGEN_DISABLED comes just before the game locks equipping for the fight: the main
+		-- hand goes on now. The off hand has to wait for the main hand to replace the two-handed pole,
+		-- and by then the fight has locked equipping (an addon equipping in a fight is blocked:
+		-- ADDON_ACTION_BLOCKED UNKNOWN()), so it goes on as the fight ends, unless the lock hasn't
+		-- come yet.)
 		if weapons[1] then Equip(weapons[1], 16) end
-		if weapons[2] then C_Timer.After(0.4, function() Equip(weapons[2], 17) end) end
+		if weapons[2] then
+			C_Timer.After(0.4, function()
+				OutOfCombat(function() Equip(weapons[2], 17) end)
+			end)
+		end
 	elseif reason == "toggle" and Get("restoreWeapons") and type(weapons) == "table" and (weapons[1] or weapons[2]) then
 		OutOfCombat(function()
 			if weapons[1] then Equip(weapons[1], 16) end

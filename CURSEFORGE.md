@@ -20,7 +20,7 @@ Requires **DaylightUI**.
 - **A catch counter** for the session (hover it for the totals, click it for the list).
 - **Fishing skill:** the bar at the top of the menu shows your skill against your rank's cap. Click it to see where to learn your next rank, and click a place for a waypoint.
 
-**Pulled into a fight?** Your weapons go back on at once.
+**Pulled into a fight?** Your main hand goes back on at once, your off hand as the fight ends.
 
 Everything goes back as it was when Fishing Mode ends.
 
