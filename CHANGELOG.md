@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.5
+- On German, French, Spanish, Russian, Korean and Chinese clients, words the game already translates (like Fishing, Fishing Skill and Off) use the game's own translation instead of our draft.
+
 ## 1.6.4
 - Fixes for non-English game clients: Krix in Powderfuse Port is found again (Riverglades is now looked up by its map number, not its English name), and the trainer box shows the places, the Expert Fishing book, the Artisan quest, Alliance and Horde, and the named fishing keys (Space, mouse buttons, Backspace) in the game's language. English clients see no change.
 - Window opacity: follows DaylightUI's by default, or set your own on the options page.

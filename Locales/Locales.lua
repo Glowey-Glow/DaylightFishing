@@ -21,7 +21,42 @@
 local _, ns = ...
 
 ns.LOCALE = GetLocale and GetLocale() or "enUS"
-ns.L = setmetatable({}, { __index = function(_, key) return key end })
+local ENGLISH = ns.LOCALE:sub(1, 2) == "en"
+
+-- Keys whose English is word for word one of the game's global strings (same case, punctuation
+-- and holes), in the same sense: on a non-English client the game's own translation stands in
+-- for ours, which stays as the fallback when the client lacks the global. English clients keep
+-- ours. The named fishing keys (Space, Backspace, ...) take the game's names in Core.lua, and
+-- "Fishing" stays ours for the plugin's short name on DaylightUI's rail.
+local GAME = {
+	["%s, %s"] = "LIST_DELIMITER",
+	["Fishing Skill"] = "ITEM_MOD_FISHING_SHORT",
+	["Off"] = "OFF",
+}
+
+-- The game's text for a key in GAME, on a non-English client that has it; else nil.
+local function Game(key)
+	local global = not ENGLISH and GAME[key]
+	local v = global and _G[global]
+	if type(v) == "string" and v ~= "" then return v end
+	return nil
+end
+
+-- A language file's line for a key in GAME is kept only where the game has no text for it.
+ns.L = setmetatable({}, {
+	__index = function(_, key) return Game(key) or key end,
+	__newindex = function(t, key, value) rawset(t, key, Game(key) or value) end,
+})
+
+-- The game's own string (a global such as PROFESSIONS_FISHING) on a non-English client, when it
+-- has it; else ours (an L[...] value). English clients always keep ours.
+function ns.GameText(global, ours)
+	if not ENGLISH then
+		local v = _G[global]
+		if type(v) == "string" and v ~= "" then return v end
+	end
+	return ours
+end
 
 local FORM
 if ns.LOCALE == "ruRU" then

@@ -1901,7 +1901,7 @@ end
 local function NotSound(get) return get("sound") == false end
 
 local pages = {
-	{ id = "fishing", label = L["Fishing"],
+	{ id = "fishing", label = ns.GameText("PROFESSIONS_FISHING", L["Fishing"]),
 	  desc = L["Fishing Mode: put \"Fishing Mode\" in a data text slot (Info Panel, Data texts) and click it, or type /dui fish."],
 	  groups = {
 		{ label = L["Fishing Mode"], items = {
@@ -1979,7 +1979,7 @@ pcall(function()
 		color = { 0.4, 0.8, 1 },
 		blurb = L["Fishing Mode: your pole, your bait and one key to fish."],
 	})
-	DUI:RegisterModule(ADDON, { plugin = ADDON, label = L["Fishing"], defaults = DEFAULTS, options = { pages = pages } })
+	DUI:RegisterModule(ADDON, { plugin = ADDON, label = ns.GameText("PROFESSIONS_FISHING", L["Fishing"]), defaults = DEFAULTS, options = { pages = pages } })
 end)
 
 me.RegisterCommand("fish", function() Fishing.Toggle() end, L["Turn Fishing Mode on or off."])

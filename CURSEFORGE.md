@@ -27,7 +27,7 @@ Everything goes back as it was when Fishing Mode ends.
 ---
 
 ## In your language
-Daylight Fishing speaks German, French, Spanish, Russian, Korean and Simplified Chinese (machine drafts, corrections welcome), and finds trainers, places and keys on every game client.
+Daylight Fishing speaks German, French, Spanish, Russian, Korean and Simplified Chinese (machine drafts, corrections welcome; words the game already translates use the game's own wording), and finds trainers, places and keys on every game client.
 
 ---
 
