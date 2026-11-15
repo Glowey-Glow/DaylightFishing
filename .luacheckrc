@@ -7,11 +7,14 @@ ignore = { "212/_.*", "213/_.*" }
 
 -- Globals this addon sets: its saved variables and slash commands.
 globals = {
+	"StaticPopupDialogs",
 	"DaylightFishingDB",
 }
 
 -- The WoW client's API, frames and constants this addon reads.
 read_globals = {
+	"StaticPopup_Show",
+	"UISpecialFrames",
 	"C_AddOns",
 	"C_Container",
 	"C_Item",

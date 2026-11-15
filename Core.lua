@@ -7,7 +7,9 @@
 --        pole) and the cast button. One key casts, and hooks the fish once the bobber is out.
 --   off: the sound goes back to how you had it, the menu and the key are let go, and your
 --        weapons go back on. Taking the pole off yourself turns Fishing Mode off too (your
---        weapons are left as you put them), and putting one on turns it on (a setting).
+--        weapons go back on unless you put others on), and putting one on turns it on (a
+--        setting). A fight turns it off and it stays off ("Combat Detected, Exiting Fishing
+--        Mode" shows where the menu was).
 -- A button in its settings makes a "Fishing Mode" macro (/dui fish) with the Fishing icon.
 -- The settings are on its page in DaylightUI's options (Plugins). Built on DaylightUI.API only.
 
@@ -47,6 +49,7 @@ local DEFAULTS = {
 	menuScale = 1,
 	duiOpacity = true,
 	opacity = 0.85,
+	mastercraftFights = true,
 }
 
 -- Read once and kept until a setting of ours changes: the quiet screen asks several of them every
@@ -539,7 +542,7 @@ end
 local function ShowMenu(show)
 	OutOfCombat(function()
 		BuildMenu()
-		if show and Get("showMenu") then
+		if show and active and Get("showMenu") then
 			UpdateMenu()
 			menu:Show()
 		else
@@ -741,13 +744,187 @@ end)
 
 local enterSerial = 0
 
+-- Your weapons. char.weapons = { main hand, off hand } (item links) are the ones Fishing Mode owes
+-- you: saved as it starts, and kept (in the saved variables, so a /reload keeps them too) until
+-- they are back in your hands, whichever way it ends. They are never the pole: they are only taken
+-- while no pole is in your main hand. Kept while a pole is in hand (put back on by you or by
+-- another addon after a fight), and let go once they are back on, or once you put other weapons
+-- on yourself. char.lastWeapons: what you held last with no pole in hand and nothing owed, for a
+-- pole you put on by hand (Fishing Mode then turns on with the pole already in hand).
+
+-- The item in a slot is this one (by item, whatever its enchant).
+local function InSlot(slot, link)
+	if not link then return false end
+	local id = C_Item.GetItemInfoInstant(link)
+	return id ~= nil and GetInventoryItemID("player", slot) == id
+end
+
+local function HandsNow()
+	local main, off = GetInventoryItemLink("player", 16), GetInventoryItemLink("player", 17)
+	if IsPole(main) or not (main or off) then return nil end
+	return { main, off }
+end
+
+-- After any change to your hands while Fishing Mode is off: weapons owed and back on are let go,
+-- and so are they when you put another weapon in your main hand. With a pole or nothing in hand,
+-- they stay owed.
+local function SettleWeapons()
+	if active or not char then return end
+	local mainID = GetInventoryItemID("player", 16)
+	if IsPole(mainID) then return end
+	local w = char.weapons
+	if type(w) == "table" then
+		local back = (not w[1] or InSlot(16, w[1])) and (not w[2] or InSlot(17, w[2]))
+		if back or (mainID and not InSlot(16, w[1])) then char.weapons = nil end
+	elseif w ~= nil then
+		char.weapons = nil
+	end
+	if not char.weapons then char.lastWeapons = HandsNow() end
+end
+
+-- What you hold now, to put back when Fishing Mode ends. Weapons still owed stay as they were while
+-- your hands hold only part of them (a fight ended Fishing Mode: the main hand is back, the off
+-- hand not yet) or nothing.
+local function SaveWeapons()
+	local w = char.weapons
+	if type(w) == "table" then
+		local main, off = GetInventoryItemID("player", 16), GetInventoryItemID("player", 17)
+		if (not main or InSlot(16, w[1])) and (not off or InSlot(17, w[2])) then return end
+	end
+	char.weapons = HandsNow()
+end
+
+-- The owed weapons back in their own slots. The game blocks an addon equipping in a fight
+-- (ADDON_ACTION_BLOCKED: /equip is one of its secure commands), so in one they wait for its end.
+-- PLAYER_REGEN_DISABLED comes just before that lock, so a fight's first moment still takes the
+-- main hand. The off hand waits for the main hand to replace the two-handed pole, and goes on only
+-- with no pole in hand: on top of one it would take the pole off and leave the main hand empty.
+local weaponsQueued = false
+local RestoreWeapons, RestoreOffHand
+
+function RestoreOffHand()
+	local w = char and char.weapons
+	if active or type(w) ~= "table" or not w[2] then return end
+	if InCombatLockdown() then
+		if not weaponsQueued then
+			weaponsQueued = true
+			later[#later + 1] = RestoreWeapons
+		end
+		return
+	end
+	if IsPole(GetInventoryItemID("player", 16)) or InSlot(17, w[2]) then return end
+	if (ItemCount(w[2]) or 0) > 0 then Equip(w[2], 17) end
+end
+
+function RestoreWeapons()
+	weaponsQueued = false
+	local w = char and char.weapons
+	if active or type(w) ~= "table" then return end
+	if InCombatLockdown() then
+		weaponsQueued = true
+		later[#later + 1] = RestoreWeapons
+		return
+	end
+	if w[1] and not InSlot(16, w[1]) and (ItemCount(w[1]) or 0) > 0 then Equip(w[1], 16) end
+	if w[2] then C_Timer.After(0.4, RestoreOffHand) end
+	SettleWeapons()
+end
+
+-- The note that takes the fishing menu's place when a fight ends Fishing Mode: "Combat Detected,
+-- Exiting Fishing Mode" for a moment, then it fades away. It is no secure frame, so it shows and
+-- fades in a fight. If the game kept the menu up (its buttons are secure, and the menu goes once
+-- the fight ends), the menu fades with it, and the note keeps the mouse off its buttons until then.
+local notice
+local NOTICE_IN, NOTICE_HOLD, NOTICE_OUT = 0.15, 2.5, 0.8
+
+local function MenuKept()
+	return menu ~= nil and menu:IsShown() and not active
+end
+
+local function HideNotice()
+	if notice then notice:Hide() end
+	if menu then menu:SetAlpha(1) end
+end
+
+local function BuildNotice()
+	if notice then return end
+	notice = CreateFrame("Frame", "DaylightFishingNotice", UIParent)
+	notice:SetIgnoreParentAlpha(true)   -- it stays while the rest of the UI fades
+	notice:SetFrameStrata("MEDIUM")
+	notice:SetFrameLevel(60)
+	notice:SetClampedToScreen(true)
+	notice:Hide()
+	notice.text = API.Text(notice, "body", "CENTER")
+	notice.text:SetPoint("CENTER")
+	notice.text:SetWordWrap(false)
+	notice:SetScript("OnUpdate", function(self, elapsed)
+		self.age = self.age + elapsed
+		local a
+		if self.age < NOTICE_IN then
+			a = self.age / NOTICE_IN
+		elseif self.age < NOTICE_IN + NOTICE_HOLD then
+			a = 1
+		else
+			a = 1 - (self.age - NOTICE_IN - NOTICE_HOLD) / NOTICE_OUT
+		end
+		if MenuKept() then menu:SetAlpha(math.max(0, self.age < NOTICE_IN + NOTICE_HOLD and 1 or a)) end
+		if a > 0 then
+			self:SetAlpha(a)
+			return
+		end
+		self:SetAlpha(0)
+		if MenuKept() then return end
+		HideNotice()
+	end)
+end
+
+local function ShowNotice()
+	BuildNotice()
+	notice.text:SetText(L["Combat Detected, Exiting Fishing Mode"])
+	notice.text:SetTextColor(TextColor("WARN"))
+	notice:SetScale(Get("menuScale") or 1)
+	-- As wide as the menu, or as its text needs (never cut off).
+	local w, h = math.ceil(notice.text:GetStringWidth()) + 2 * PAD + 8, 44
+	notice:ClearAllPoints()
+	if menu then
+		if menu:GetWidth() > w then w = menu:GetWidth() end
+		if menu:GetHeight() > h then h = menu:GetHeight() end
+		notice:SetPoint("CENTER", menu, "CENTER")
+	else
+		notice:SetPoint("CENTER", UIParent, "CENTER", 0, -190)
+	end
+	notice:SetSize(w, h)
+	notice:EnableMouse(MenuKept())
+	SkinWindow(notice)
+	notice.age = 0
+	notice:SetAlpha(0)
+	notice:Show()
+end
+
+-- A fight that ended Fishing Mode: a pole going on during it or just after (another addon may put
+-- your fishing gear back on as it ends) doesn't turn Fishing Mode back on by itself.
+local AUTO_HOLD = 5
+local fightEnded, holdUntil = false, 0
+
+local function AutoHeld()
+	return fightEnded or GetTime() < holdUntil
+end
+
 local function Enter(resuming)
 	if active then return end
 	if InCombatLockdown() then
 		Print(L["Not in a fight."])
 		return
 	end
-	if not PoleEquipped() then
+	HideNotice()
+	fightEnded, holdUntil = false, 0
+	if PoleEquipped() then
+		-- The pole is in hand already (put on by hand, after a /reload, or after a fight): the
+		-- weapons still owed stay, else the ones you held before the pole went on.
+		if type(char.weapons) ~= "table" and type(char.lastWeapons) == "table" then
+			char.weapons = { char.lastWeapons[1], char.lastWeapons[2] }
+		end
+	else
 		if resuming or not Get("equipPole") then
 			if not resuming then Print(L["Equip a fishing pole first."]) end
 			return
@@ -757,8 +934,7 @@ local function Enter(resuming)
 			Print(L["No fishing pole in your bags."])
 			return
 		end
-		-- What you held, to put back when Fishing Mode ends.
-		char.weapons = { GetInventoryItemLink("player", 16), GetInventoryItemLink("player", 17) }
+		SaveWeapons()
 		equipping = true
 		Equip(pole)
 		enterSerial = enterSerial + 1
@@ -782,8 +958,10 @@ local function Enter(resuming)
 	UpdateBroker()
 end
 
--- reason: "toggle" (the button: your weapons go back on), "combat" (a fight started: your weapons
--- go back on at once, which the game allows in a fight) or "unequipped" (you took the pole off).
+-- reason: "toggle" (the button), "combat" (a fight started: Fishing Mode ends and stays off, the
+-- main hand goes on at once and the off hand as the fight ends) or "unequipped" (you took the pole
+-- off: your weapons go back on if your main hand is empty or holds your own main hand again, else
+-- what you put on stays). With "Put my weapons back on" off, the weapons stay as they are.
 local function Leave(reason)
 	if not active then return end
 	active, equipping, channeling = false, false, false
@@ -793,30 +971,19 @@ local function Leave(reason)
 	KeepWater()
 	RestoreSettings()
 	ShowMenu(false)
-	local weapons = char.weapons
-	char.weapons = nil
-	if reason == "combat" and type(weapons) == "table" then
-		-- (PLAYER_REGEN_DISABLED comes just before the game locks equipping for the fight: the main
-		-- hand goes on now. The off hand has to wait for the main hand to replace the two-handed pole,
-		-- and by then the fight has locked equipping (an addon equipping in a fight is blocked:
-		-- ADDON_ACTION_BLOCKED UNKNOWN()), so it goes on as the fight ends, unless the lock hasn't
-		-- come yet.)
-		if weapons[1] then Equip(weapons[1], 16) end
-		if weapons[2] then
-			C_Timer.After(0.4, function()
-				OutOfCombat(function() Equip(weapons[2], 17) end)
-			end)
-		end
-	elseif reason == "toggle" and Get("restoreWeapons") and type(weapons) == "table" and (weapons[1] or weapons[2]) then
-		OutOfCombat(function()
-			if weapons[1] then Equip(weapons[1], 16) end
-			if weapons[2] then
-				C_Timer.After(0.4, function()
-					if not InCombatLockdown() then Equip(weapons[2], 17) end
-				end)
-			end
-		end)
+	if reason == "combat" then
+		fightEnded = true
+		ShowNotice()
 	end
+	if not Get("restoreWeapons") then
+		char.weapons = nil
+	elseif type(char.weapons) == "table" then
+		local w = char.weapons
+		if reason ~= "unequipped" or not GetInventoryItemID("player", 16) or InSlot(16, w[1]) then
+			RestoreWeapons()
+		end
+	end
+	SettleWeapons()
 	UpdateBroker()
 end
 
@@ -1758,6 +1925,50 @@ local function BindWhenReleased(tries)
 end
 
 -- DaylightUI is ready (its settings too): the saved variables, and Fishing Mode carried over.
+-- Mastercraft (another author's addon) has its own "After the fight: your fishing gear back on"
+-- (on by default): when a fight that came while you held your pole ends, it puts the pole back on.
+-- That fights Fishing Mode ending in a fight. As with every such overlap, the DaylightUI side
+-- wins by default: "Fights while fishing" (mastercraftFights) on switches that one Mastercraft
+-- setting off and records what it was; off gives the recorded value back. Its setting is read live
+-- from its saved settings, so the change holds at once. Asked once, the first time both are loaded.
+local function MastercraftSettings()
+	if not (C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("Mastercraft")) then return nil end
+	local mdb = _G.MastercraftDB
+	return type(mdb) == "table" and type(mdb.settings) == "table" and mdb.settings or nil
+end
+
+local function ApplyMastercraft()
+	local ms = MastercraftSettings()
+	if not ms or not db then return end
+	if Get("mastercraftFights") ~= false then
+		if db.mastercraftWas == nil then db.mastercraftWas = ms.fishAfterFight ~= false end
+		ms.fishAfterFight = false
+	elseif db.mastercraftWas ~= nil then
+		ms.fishAfterFight = db.mastercraftWas
+		db.mastercraftWas = nil
+	end
+end
+
+local function AskMastercraft()
+	if not MastercraftSettings() or db.mastercraftAsked then return end
+	db.mastercraftAsked = true
+	StaticPopupDialogs.DAYLIGHTFISHING_MASTERCRAFT = {
+		text = L["Mastercraft puts your fishing pole back on after every fight, and Daylight Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nDaylight Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights while fishing."],
+		button1 = L["Daylight Fishing"],
+		button2 = L["Mastercraft"],
+		OnAccept = function() DUI:Set(ADDON, "mastercraftFights", true) end,
+		OnCancel = function(_, _, reason)
+			if reason == "clicked" then DUI:Set(ADDON, "mastercraftFights", false) end
+		end,
+		timeout = 0, whileDead = true, hideOnEscape = false, preferredIndex = 3,
+	}
+	StaticPopup_Show("DAYLIGHTFISHING_MASTERCRAFT")
+end
+
+me.On("SettingChanged", function(scope, path)
+	if scope == ADDON and path == "mastercraftFights" then ApplyMastercraft() end
+end)
+
 local function Login()
 	DaylightFishingDB = DaylightFishingDB or {}
 	db = DaylightFishingDB
@@ -1781,11 +1992,15 @@ local function Login()
 		else
 			char.active = nil
 			RestoreSettings()
-			char.weapons = nil
+			-- (Weapons still owed with a pole in hand stay owed: they go back on when Fishing Mode
+			-- next ends.)
+			SettleWeapons()
 		end
 		UpdateBroker()
 	end)
 	UpdateBroker()
+	ApplyMastercraft()
+	AskMastercraft()
 	if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("ForeverFishing") then
 		Print(L["Forever Fishing is loaded too: give the two different keys, or turn one off."])
 	end
@@ -1812,24 +2027,33 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 		looting = false
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		Unfade()
-		-- A fight while fishing: Fishing Mode ends and the weapons it took off go back on.
-		local weapons = char and char.weapons
-		if active and Get("restoreWeapons") and type(weapons) == "table" and (weapons[1] or weapons[2])
-			and PoleEquipped() then
-			Leave("combat")
-		end
+		-- A fight while fishing: Fishing Mode ends, and stays off after it. The weapons it took off
+		-- go back on (with "Put my weapons back on").
+		if active then Leave("combat") end
 	elseif event == "PLAYER_REGEN_ENABLED" then
+		-- A fight that ended Fishing Mode is over: a pole that goes on now (another addon putting
+		-- your fishing gear back on) leaves it off for a few seconds more. Set before the work that
+		-- waited for the fight, which may turn Fishing Mode on for a pole.
+		if fightEnded then
+			fightEnded = false
+			holdUntil = GetTime() + AUTO_HOLD
+		end
 		local list = later
 		later = {}
 		for i = 1, #list do pcall(list[i]) end
 		UpdateBinding()
+		-- (The note lets go of the mouse: the menu it kept off is gone with the fight.)
+		if notice and notice:IsShown() then notice:EnableMouse(MenuKept()) end
 	elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+		if a ~= 16 and a ~= 17 then return end
+		if not active then SettleWeapons() end
 		if a ~= 16 then return end
 		if not active then
-			-- A pole put on by hand turns Fishing Mode on (after a fight, if it's still in hand).
-			if Get("autoMode") and char and PoleEquipped() then
+			-- A pole put on by hand turns Fishing Mode on (after a fight, if it's still in hand), but
+			-- not one that goes on in or right after a fight that ended it.
+			if Get("autoMode") and char and PoleEquipped() and not AutoHeld() then
 				OutOfCombat(function()
-					if not active and PoleEquipped() then Enter(true) end
+					if not active and PoleEquipped() and not AutoHeld() then Enter(true) end
 				end)
 			end
 			return
@@ -1889,23 +2113,140 @@ end)
 -- DaylightUI: plugin, options page, command
 -- ---------------------------------------------------------------------------------------------
 
-local KEYS = {
-	NONE = L["No key (click the cast button)"],
-	SPACE = L["Space"],
-	BUTTON3 = L["Middle mouse button"],
-	BUTTON4 = L["Mouse button 4"],
-	BUTTON5 = L["Mouse button 5"],
-	F = "F", G = "G", R = "R", T = "T", Z = "Z", X = "X", C = "C", V = "V",
-	BACKSPACE = L["Backspace"],
-	["`"] = L["` (backquote)"],
-}
--- Other languages: the game's own names for the named keys.
-if not ENGLISH and GetBindingText then
-	for _, key in ipairs({ "SPACE", "BUTTON3", "BUTTON4", "BUTTON5", "BACKSPACE" }) do
-		local text = GetBindingText(key)
-		if type(text) == "string" and text ~= "" and text ~= key then KEYS[key] = text end
+-- The fishing key: set in a small box that takes the next key or mouse button pressed (out of a
+-- fight), the way Daylight Essentials' Halo sets its key. Space to start; Clear leaves no key (the
+-- cast button is clicked instead). Shift, Alt and Ctrl alone can't be it, and neither can Escape
+-- (it closes the box) or the left and right mouse buttons (they're for the box itself).
+-- (All of it inside one function: Core.lua is near Lua's limit of 200 locals in a file's main
+-- function, and none of these is needed outside it.)
+Fishing.SetKey = (function()
+	local MODIFIERS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true,
+		LMETA = true, RMETA = true, SHIFT = true, CTRL = true, ALT = true, META = true }
+	local BOX_MOUSE = { MiddleButton = "BUTTON3", Button4 = "BUTTON4", Button5 = "BUTTON5" }
+
+	local keyBox
+
+	local function KeyName(key)
+		if type(key) ~= "string" or key == "" or key == "NONE" then return nil end
+		if GetBindingText then
+			local ok, text = pcall(GetBindingText, key)
+			if ok and type(text) == "string" and text ~= "" then return text end
+		end
+		return key
 	end
-end
+
+	local function BoxInk(fs, name)
+		local ok, colors = pcall(API.Colors)
+		local c = ok and type(colors) == "table" and colors[name]
+		if type(c) == "table" then fs:SetTextColor(c[1], c[2], c[3]) end
+	end
+
+	local function KeyBoxLayout()
+		local kb = keyBox
+		kb.now:SetText(L["Now: %s"]:format(KeyName(Get("key")) or L["no key (click the cast button)"]))
+		kb.clear:SetShown(KeyName(Get("key")) ~= nil)
+		-- Tall enough for every line at its width: nothing is cut short.
+		local w = kb:GetWidth() - 24
+		local h = 40
+		for _, fs in ipairs({ kb.now, kb.help, kb.msg }) do
+			fs:SetWidth(w)
+			local text = fs:GetText()
+			if text and text ~= "" then h = h + math.ceil(fs:GetStringHeight() or 14) + 6 end
+		end
+		kb:SetHeight(h + 40)
+		SkinWindow(kb)
+	end
+
+	local function ShowKeyBox(show)
+		if show and InCombatLockdown() then
+			Print(L["The fishing key can be set out of a fight."])
+			return
+		end
+		local kb = keyBox
+		if show then
+			kb.msg:SetText("")
+			KeyBoxLayout()
+			-- Takes every key while it's open (Escape included), so none of them does anything else.
+			kb:EnableKeyboard(true)
+			kb:SetPropagateKeyboardInput(false)
+			kb:Show()
+		elseif kb and kb:IsShown() then
+			kb:Hide()
+			if not InCombatLockdown() then kb:EnableKeyboard(false) end
+		end
+	end
+
+	local function SaveFishingKey(key)
+		if InCombatLockdown() then return end
+		local ok = pcall(DUI.Set, DUI, ADDON, "key", key)
+		if not ok then
+			Print(L["The fishing key couldn't be saved."])
+			return
+		end
+		Print(KeyName(key) and L["The fishing key is now %s."]:format(KeyName(key))
+			or L["No fishing key: click the cast button to fish."])
+		ShowKeyBox(false)
+	end
+
+	local function TakeKey(key)
+		if MODIFIERS[key] then
+			keyBox.msg:SetText(L["Shift, Alt and Ctrl can't be the fishing key on their own."])
+			BoxInk(keyBox.msg, "WARN")
+			KeyBoxLayout()
+			return
+		end
+		SaveFishingKey(key)
+	end
+
+	local function BuildKeyBox()
+		if keyBox then return end
+		local kb = CreateFrame("Frame", "DaylightFishingKeyBox", UIParent)
+		keyBox = kb
+		kb:SetFrameStrata("FULLSCREEN_DIALOG")
+		kb:SetToplevel(true)
+		kb:SetSize(320, 150)
+		kb:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
+		kb:SetClampedToScreen(true)
+		kb:EnableMouse(true)
+		local head = API.Text(kb, "head", "LEFT")
+		head:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -12)
+		head:SetText(L["Fishing key"])
+		BoxInk(head, "TITLE")
+		kb.now = API.Text(kb, "body", "LEFT")
+		kb.now:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -40)
+		BoxInk(kb.now, "VALUE")
+		kb.help = API.Text(kb, "small", "LEFT")
+		kb.help:SetPoint("TOPLEFT", kb.now, "BOTTOMLEFT", 0, -6)
+		kb.help:SetText(L["Press the key you want, or click here with the mouse's middle or a side button. Escape cancels."])
+		BoxInk(kb.help, "TEXT")
+		kb.msg = API.Text(kb, "small", "LEFT")
+		kb.msg:SetPoint("TOPLEFT", kb.help, "BOTTOMLEFT", 0, -6)
+		for _, fs in ipairs({ kb.now, kb.help, kb.msg }) do fs:SetWordWrap(true) end
+		local close = API.Close(kb, function() ShowKeyBox(false) end)
+		if close then close:SetPoint("TOPRIGHT", kb, "TOPRIGHT", -6, -6) end
+		kb.clear = API.Button(kb, L["Clear"], 24)
+		kb.clear:SetWidth(90)
+		kb.clear:SetPoint("BOTTOMRIGHT", kb, "BOTTOMRIGHT", -12, 12)
+		kb.clear:SetScript("OnClick", function() SaveFishingKey("NONE") end)
+		kb.space = API.Button(kb, L["Space"], 24)
+		kb.space:SetWidth(90)
+		kb.space:SetPoint("RIGHT", kb.clear, "LEFT", -8, 0)
+		kb.space:SetScript("OnClick", function() SaveFishingKey("SPACE") end)
+		kb:SetScript("OnKeyDown", function(_, key)
+			if key == "ESCAPE" then ShowKeyBox(false) else TakeKey(key) end
+		end)
+		kb:SetScript("OnMouseDown", function(_, which)
+			if BOX_MOUSE[which] then TakeKey(BOX_MOUSE[which]) end
+		end)
+		kb:Hide()
+		if type(UISpecialFrames) == "table" then table.insert(UISpecialFrames, "DaylightFishingKeyBox") end
+	end
+
+	return function()
+		BuildKeyBox()
+		ShowKeyBox(true)
+	end
+end)()
 
 local function NotSound(get) return get("sound") == false end
 
@@ -1919,13 +2260,17 @@ local pages = {
 			  desc = L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and off. It goes on your cursor: drop it on an action bar."] },
 			{ type = "toggle", key = "autoMode", label = L["Turn on when I equip a pole"],
 			  desc = L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] },
-			{ type = "dropdown", key = "key", label = L["Fishing key"], values = KEYS,
-			  desc = L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] },
+			{ type = "button", label = L["Set Fishing Key"], func = function() Fishing.SetKey() end,
+			  desc = L["Opens a small box: press any key you want (a mouse's middle or side button works too). Space to start. While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] },
 			{ type = "button", label = L["Clear this session's catch"], func = function() Fishing.ResetCatch() end },
 			{ type = "toggle", key = "equipPole", label = L["Put my fishing pole on"],
 			  desc = L["Fishing Mode puts on the best fishing pole in your bags."] },
 			{ type = "toggle", key = "restoreWeapons", label = L["Put my weapons back on"],
 			  desc = L["When you turn Fishing Mode off or get into a fight, the weapons you held go back on."] },
+		} },
+		{ label = L["Fights while fishing"], items = {
+			{ type = "toggle", key = "mastercraftFights", label = L["Daylight Fishing handles fights"],
+			  desc = L["With Mastercraft loaded: on, its \"After the fight: your fishing gear back on\" is off, so your pole stays off after a fight. Off gives Mastercraft its own setting back."] },
 		} },
 		{ label = L["Fishing menu"], items = {
 			{ type = "toggle", key = "showMenu", label = L["Show the fishing menu"],

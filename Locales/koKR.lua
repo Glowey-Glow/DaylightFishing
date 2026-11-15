@@ -18,6 +18,7 @@ L["Bait %d:%02d"] = "미끼 %d:%02d"
 L["No bait on"] = "미끼 없음"
 L["Caught %d"] = "낚음 %d"
 L["Fishing Mode is off. The menu goes away when the fight ends."] = "낚시 모드가 꺼졌습니다. 메뉴는 전투가 끝나면 사라집니다."
+L["Combat Detected, Exiting Fishing Mode"] = "전투 감지, 낚시 모드 종료"
 
 -- Chat messages
 L["Not in a fight."] = "전투 중에는 안 됩니다."

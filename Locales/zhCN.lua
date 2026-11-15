@@ -18,6 +18,7 @@ L["Bait %d:%02d"] = "鱼饵 %d:%02d"
 L["No bait on"] = "未装鱼饵"
 L["Caught %d"] = "已钓 %d"
 L["Fishing Mode is off. The menu goes away when the fight ends."] = "钓鱼模式已关闭。菜单将在战斗结束后消失。"
+L["Combat Detected, Exiting Fishing Mode"] = "检测到战斗，退出钓鱼模式"
 
 -- Chat messages
 L["Not in a fight."] = "战斗中无法进行。"

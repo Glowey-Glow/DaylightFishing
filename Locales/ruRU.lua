@@ -19,6 +19,7 @@ L["Bait %d:%02d"] = "Наживка %d:%02d"
 L["No bait on"] = "Без наживки"
 L["Caught %d"] = "Поймано: %d"
 L["Fishing Mode is off. The menu goes away when the fight ends."] = "Режим рыбалки выключен. Меню исчезнет после боя."
+L["Combat Detected, Exiting Fishing Mode"] = "Обнаружен бой, выход из режима рыбалки"
 
 -- Chat messages
 L["Not in a fight."] = "Не в бою."

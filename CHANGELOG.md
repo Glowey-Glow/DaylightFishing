@@ -1,5 +1,12 @@
 # Daylight Fishing
 
+## 1.6.7
+- The fishing key can be any key you like: Set Fishing Key opens a small box, press the key you want (a mouse's middle or side button works too), or pick Space or Clear (no key: click the cast button). It replaces the short list of keys. Space is still the key to start, and a key you picked before is kept.
+- A fight now always ends Fishing Mode, and it stays off after the fight. "Combat Detected, Exiting Fishing Mode" shows where the fishing menu was, then fades away.
+- With Mastercraft loaded: its "After the fight: your fishing gear back on" put your pole back on after every fight. Daylight Fishing now handles fights by default and turns that one Mastercraft setting off (asked once; change it any time under Fishing > Fights while fishing, which gives Mastercraft its setting back).
+- Fix: a fishing pole that goes back on during or right after the fight (another addon putting your fishing gear back on) no longer turns Fishing Mode back on.
+- Fix: your weapons are never lost. The ones you held when Fishing Mode started are kept until they are back in your hands, so they go back on when Fishing Mode ends however it ends: from the button, after a fight (even with the pole back in hand since), after a /reload, or when you take the pole off and leave your hands empty. A pole you put on by hand brings back the weapons you held before it.
+
 ## 1.6.6
 - Pulled into a fight while fishing: no more "blocked action" error. Your main hand still goes on at once; the off hand, which the game won't let an addon equip during a fight, goes on as the fight ends.
 
