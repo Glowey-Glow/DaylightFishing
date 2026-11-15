@@ -1,5 +1,11 @@
 # Daylight Fishing
 
+## 1.6.3
+- New: getting into a fight while in Fishing Mode puts your saved weapons back on at once and ends Fishing Mode (with "Put my weapons back on" on, as it is to start).
+- Fix: taking the fishing pole off in a fight no longer causes a blocked-action error (SetCVar). Your sound and other settings go back once the fight ends.
+- Fix: "Keep the minimap" off now fades the minimap too. The game draws its dots at full strength whatever the UI's opacity, so the minimap now goes fully away once the UI has faded out, the way DaylightUI's AFK screen hides it.
+- Fix: "Keep the chat" on now keeps DaylightUI's chat on screen. It kept only the game's own chat windows, which DaylightUI hides, so the chat you see faded anyway.
+
 ## 1.6.2
 - All text in American English (gray, color and the like), in the game and in the docs.
 

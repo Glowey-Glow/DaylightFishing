@@ -8,6 +8,7 @@ ignore:
   - .gitignore
   - .gitattributes
   - .pkgmeta
+  - .luacheckrc
 
 manual-changelog:
   filename: CHANGELOG.md

@@ -201,21 +201,27 @@ local function SameValue(a, b)
 	return x ~= nil and y ~= nil and math.abs(x - y) < 1e-4
 end
 
--- Each saved setting back to how it was. One the game didn't take (it can refuse some in a fight)
--- is kept, and tried again when the fight ends: it is never forgotten before it is back.
+-- Each saved setting back to how it was. Never in a fight: the game blocks SetCVar there (a
+-- blocked-action error, which pcall doesn't stop), so it waits for the fight's end. One the game
+-- didn't take is kept and tried again later: it is never forgotten before it is back.
 local RestoreSettings
+local restoreQueued = false
 function RestoreSettings()
+	if InCombatLockdown() then
+		if not restoreQueued then
+			restoreQueued = true
+			later[#later + 1] = RestoreSettings
+		end
+		return
+	end
+	restoreQueued = false
 	if type(db.saved) ~= "table" then return end
 	for name, old in pairs(db.saved) do
 		pcall(SetCVar, name, old)
 		local ok, now = pcall(GetCVar, name)
 		if not ok or now == nil or SameValue(now, old) then db.saved[name] = nil end
 	end
-	if next(db.saved) == nil then
-		db.saved = nil
-	elseif InCombatLockdown() then
-		later[#later + 1] = RestoreSettings
-	end
+	if next(db.saved) == nil then db.saved = nil end
 end
 
 -- ---------------------------------------------------------------------------------------------
@@ -582,6 +588,10 @@ local function LiftAll()
 	for i = 1, #POPUP_NAMES do Lift(_G[POPUP_NAMES[i]]) end
 	if Get("keepMinimap") ~= false then Lift(Holder(_G.Minimap)) end
 	if Get("keepChat") ~= false then
+		-- DaylightUI's chat draws in its own frames and keeps the game's windows hidden, so
+		-- lifting only the game's would leave the chat you see fading.
+		Lift(_G.DaylightUIChat)
+		Lift(_G.DaylightUIChatSide)
 		for i = 1, #CHAT_NAMES do Lift(Holder(_G[CHAT_NAMES[i]])) end
 		Lift(Holder(_G.GeneralDockManager))
 	end
@@ -593,6 +603,36 @@ local function LiftAll()
 	for i = 1, #BAG_NAMES do Lift(_G[BAG_NAMES[i]]) end
 end
 
+-- The game draws the minimap's dots (your arrow, nodes, party) at full strength whatever its
+-- parents' alpha, so fading UIParent leaves them up. With "Keep the minimap" off, once the UI is
+-- all the way out the map's own alpha goes to 0, through DaylightUI's Fade.MapAway (shared with its
+-- AFK screen and info panel, so whoever lets go last gives the map back). Never hidden: a hidden
+-- minimap came back blank. If DaylightUI renames it, the map's alpha is set here instead.
+local mapAway, mapAlphaBefore = false, nil
+local function MapAway(on)
+	if on == mapAway then return end
+	mapAway = on
+	local F = DUI and DUI.Fade
+	if type(F) == "table" and type(F.MapAway) == "function" then
+		pcall(F.MapAway, "fishing", on)
+		return
+	end
+	local map = _G.Minimap
+	if type(map) ~= "table" or not map.SetAlpha then return end
+	if on then
+		mapAlphaBefore = map:GetAlpha() or 1
+		map:SetAlpha(0)
+	else
+		map:SetAlpha(mapAlphaBefore or 1)
+		mapAlphaBefore = nil
+	end
+end
+
+local function UpdateMapAway()
+	local low = tonumber(Get("fadeAlpha")) or 0
+	MapAway(fade >= 1 and low <= 0.001 and Get("keepMinimap") == false)
+end
+
 local function SetFade(p)
 	fade = p
 	local low = tonumber(Get("fadeAlpha")) or 0
@@ -602,12 +642,14 @@ local function SetFade(p)
 	elseif p <= 0 and liftedOn then
 		DropAll()
 	end
+	UpdateMapAway()
 end
 
 -- Straight back, at once (a fight, or Fishing Mode ending).
 local function Unfade()
 	stillSince = nil
 	if fade > 0 or liftedOn then SetFade(0) end
+	MapAway(false)
 end
 
 local function AfkScreen()
@@ -651,6 +693,7 @@ fader:SetScript("OnUpdate", function(_, elapsed)
 	if AfkScreen() then
 		if liftedOn then DropAll() end
 		fade, stillSince = 0, nil
+		MapAway(false)
 		return
 	end
 	if liftedOn then
@@ -716,7 +759,8 @@ local function Enter(resuming)
 	UpdateBroker()
 end
 
--- reason: "toggle" (the button: your weapons go back on) or "unequipped" (you took the pole off).
+-- reason: "toggle" (the button: your weapons go back on), "combat" (a fight started: your weapons
+-- go back on at once, which the game allows in a fight) or "unequipped" (you took the pole off).
 local function Leave(reason)
 	if not active then return end
 	active, equipping, channeling = false, false, false
@@ -728,7 +772,10 @@ local function Leave(reason)
 	ShowMenu(false)
 	local weapons = char.weapons
 	char.weapons = nil
-	if reason == "toggle" and Get("restoreWeapons") and type(weapons) == "table" and (weapons[1] or weapons[2]) then
+	if reason == "combat" and type(weapons) == "table" then
+		if weapons[1] then Equip(weapons[1], 16) end
+		if weapons[2] then C_Timer.After(0.4, function() Equip(weapons[2], 17) end) end
+	elseif reason == "toggle" and Get("restoreWeapons") and type(weapons) == "table" and (weapons[1] or weapons[2]) then
 		OutOfCombat(function()
 			if weapons[1] then Equip(weapons[1], 16) end
 			if weapons[2] then
@@ -1128,10 +1175,10 @@ end
 
 -- Kept short: the next rank as the title, what it takes (wrapped), whether you can learn it, the
 -- click. The skill itself is on the bar already.
-function Fishing.SkillTooltip(owner)
+function Fishing.SkillTooltip(anchor)
 	local skill, cap = FishingSkill()
 	local rank = NextRank(skill, cap)
-	GameTooltip:SetOwner(owner, "ANCHOR_TOP")
+	GameTooltip:SetOwner(anchor, "ANCHOR_TOP")
 	if not rank then
 		GameTooltip:SetText("Fishing - Maximum Trained")
 		GameTooltip:Show()
@@ -1694,6 +1741,12 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 		looting = false
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		Unfade()
+		-- A fight while fishing: Fishing Mode ends and the weapons it took off go back on.
+		local weapons = char and char.weapons
+		if active and Get("restoreWeapons") and type(weapons) == "table" and (weapons[1] or weapons[2])
+			and PoleEquipped() then
+			Leave("combat")
+		end
 	elseif event == "PLAYER_REGEN_ENABLED" then
 		local list = later
 		later = {}
@@ -1794,7 +1847,7 @@ local pages = {
 			{ type = "toggle", key = "equipPole", label = "Put my fishing pole on",
 			  desc = "Fishing Mode puts on the best fishing pole in your bags." },
 			{ type = "toggle", key = "restoreWeapons", label = "Put my weapons back on",
-			  desc = "When you turn Fishing Mode off, the weapons you held go back on." },
+			  desc = "When you turn Fishing Mode off or get into a fight, the weapons you held go back on." },
 		} },
 		{ label = "Fishing menu", items = {
 			{ type = "toggle", key = "showMenu", label = "Show the fishing menu",
@@ -1866,6 +1919,7 @@ me.On("SettingChanged", function(scope, path)
 			DropAll()
 			LiftAll()
 		end
+		UpdateMapAway()
 	elseif path == "showMenu" or path == "menuScale" then
 		ShowMenu(true)
 	elseif path == "sound" or path == "sfxVolume" or path == "musicVolume" or path == "ambienceVolume"
