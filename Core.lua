@@ -1844,7 +1844,7 @@ if LDB then
 		type = "data source",
 		label = L["Fishing Mode"],
 		text = L["Off"],
-		icon = POLE_ICON,
+		icon = "Interface\\AddOns\\DaylightFishing\\Media\\icon.png",
 		OnClick = function(_, button)
 			if button == "RightButton" then
 				if IsShiftKeyDown() then
@@ -2328,6 +2328,7 @@ local pages = {
 
 pcall(function()
 	DUI:RegisterPlugin(ADDON, {
+		icon = "Interface\\AddOns\\" .. ADDON .. "\\Media\\icon-glyph.png",
 		needs = { 1, 1 },
 		short = L["Fishing"],
 		color = { 0.4, 0.8, 1 },

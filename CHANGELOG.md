@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.8
+- Its own icon: in the game's AddOns list and other menus (instead of the blank "?"), and on its page in DaylightUI's options. The Fishing Mode data text shows it too.
+
 ## 1.6.7
 - The fishing key can be any key you like: Set Fishing Key opens a small box, press the key you want (a mouse's middle or side button works too), or pick Space or Clear (no key: click the cast button). It replaces the short list of keys. Space is still the key to start, and a key you picked before is kept.
 - A fight now always ends Fishing Mode, and it stays off after the fight. "Combat Detected, Exiting Fishing Mode" shows where the fishing menu was, then fades away.
