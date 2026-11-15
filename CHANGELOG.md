@@ -1,5 +1,10 @@
 # Daylight Fishing
 
+## 1.6.4
+- Fixes for non-English game clients: Krix in Powderfuse Port is found again (Riverglades is now looked up by its map number, not its English name), and the trainer box shows the places, the Expert Fishing book, the Artisan quest, Alliance and Horde, and the named fishing keys (Space, mouse buttons, Backspace) in the game's language. English clients see no change.
+- Window opacity: follows DaylightUI's by default, or set your own on the options page.
+- Daylight Fishing speaks German, French, Spanish, Russian, Korean and Simplified Chinese (machine drafts, corrections welcome).
+
 ## 1.6.3
 - New: getting into a fight while in Fishing Mode puts your saved weapons back on at once and ends Fishing Mode (with "Put my weapons back on" on, as it is to start).
 - Fix: taking the fishing pole off in a fight no longer causes a blocked-action error (SetCVar). Your sound and other settings go back once the fight ends.

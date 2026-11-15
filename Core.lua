@@ -11,7 +11,8 @@
 -- A button in its settings makes a "Fishing Mode" macro (/dui fish) with the Fishing icon.
 -- The settings are on its page in DaylightUI's options (Plugins). Built on DaylightUI.API only.
 
-local ADDON = ...
+local ADDON, ns = ...
+local L, Plural = ns.L, ns.Plural
 
 local DUI = _G.DaylightUI
 local API = DUI and DUI.API
@@ -44,6 +45,8 @@ local DEFAULTS = {
 	keepChat = true,
 	catchPopup = true,
 	menuScale = 1,
+	duiOpacity = true,
+	opacity = 0.85,
 }
 
 -- Read once and kept until a setting of ours changes: the quiet screen asks several of them every
@@ -74,6 +77,26 @@ local db, char     -- DaylightFishingDB (account), and this character's part of 
 local function Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffDaylight Fishing|r: " .. msg)
 end
+
+-- Our menu and boxes in DaylightUI's window shell. The background follows DaylightUI's window
+-- opacity, or with "Use DaylightUI's opacity" off, the one on our page. Each frame is remembered
+-- (weakly) so a change to either, or to DaylightUI's look, dresses them all again at once.
+local shells = setmetatable({}, { __mode = "k" })
+local function SkinWindow(frame)
+	shells[frame] = true
+	if Get("duiOpacity") == false then
+		API.Skin(frame, { window = true, bgAlpha = Get("opacity") })
+	else
+		API.Skin(frame, { window = true })
+	end
+end
+local function ReskinWindows()
+	for frame in pairs(shells) do SkinWindow(frame) end
+end
+me.On("SettingChanged", function(scope, path)
+	if scope == ADDON and (path == "duiOpacity" or path == "opacity") then ReskinWindows() end
+end)
+me.On("StyleChanged", function() ReskinWindows() end)
 
 -- ---------------------------------------------------------------------------------------------
 -- The game: the Fishing spell, poles, baits
@@ -312,7 +335,7 @@ local function BaitButton(i)
 	if b then return b end
 	b = IconButton(nil, menu, SIZE, function(self)
 		if self.itemID then GameTooltip:SetItemByID(self.itemID) end
-		GameTooltip:AddLine("Click to put it on your fishing pole.", TextColor("TEXT"))
+		GameTooltip:AddLine(L["Click to put it on your fishing pole."], TextColor("TEXT"))
 	end)
 	b.count = API.Text(b.top, "tiny", "RIGHT")
 	b.count:SetPoint("BOTTOMRIGHT", -3, 3)
@@ -369,7 +392,7 @@ local function BuildMenu()
 
 	menu.title = API.Text(menu, "small", "LEFT")
 	menu.title:SetPoint("TOPLEFT", PAD, -8 - SKILL_H)
-	menu.title:SetText("Fishing Mode")
+	menu.title:SetText(L["Fishing Mode"])
 	menu.title:SetTextColor(API.Accent())
 
 	menu.lure = API.Text(menu, "tiny", "RIGHT")
@@ -377,20 +400,20 @@ local function BuildMenu()
 
 	menu.close = API.Close(menu, function()
 		if InCombatLockdown() then
-			Print("Fishing Mode is off. The menu goes away when the fight ends.")
+			Print(L["Fishing Mode is off. The menu goes away when the fight ends."])
 		end
 		_G.DaylightFishing.Toggle(false)
 	end, 14)
 	menu.close:SetPoint("TOPRIGHT", -8, -7)
 
 	cast = IconButton("DaylightFishingCast", menu, CAST_SIZE, function()
-		GameTooltip:SetText("Cast")
+		GameTooltip:SetText(L["Cast"])
 		local key = KeyText()
 		local r, g, b = TextColor("TEXT")
 		if key then
-			GameTooltip:AddLine(key .. " casts, and hooks the fish.", r, g, b)
+			GameTooltip:AddLine(L["%s casts, and hooks the fish."]:format(key), r, g, b)
 		else
-			GameTooltip:AddLine("Pick a fishing key in the options to fish with one key.", r, g, b, true)
+			GameTooltip:AddLine(L["Pick a fishing key in the options to fish with one key."], r, g, b, true)
 		end
 	end)
 	cast:SetAttribute("type", "macro")
@@ -410,7 +433,7 @@ local function BuildMenu()
 	menu.bar:Hide()
 
 	menu.empty = API.Text(menu, "small", "LEFT")
-	menu.empty:SetText("No bait in your bags")
+	menu.empty:SetText(L["No bait in your bags"])
 	menu.empty:SetTextColor(TextColor("OFF"))
 
 	-- This session's catch: hover for all of it.
@@ -425,7 +448,7 @@ local function BuildMenu()
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
 		_G.DaylightFishing.CatchTooltip(GameTooltip, true)
 		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine("Click: the catch list, fish by fish", 0.8, 0.8, 0.8)
+		GameTooltip:AddLine(L["Click: the catch list, fish by fish"], 0.8, 0.8, 0.8)
 		GameTooltip:Show()
 	end)
 	menu.catch:SetScript("OnLeave", function()
@@ -439,7 +462,7 @@ local function BuildMenu()
 		end
 	end)
 
-	me.RegisterMover(menu, "menu", "Fishing menu", { "CENTER", UIParent, "CENTER", 0, -190 })
+	me.RegisterMover(menu, "menu", L["Fishing menu"], { "CENTER", UIParent, "CENTER", 0, -190 })
 
 	-- The bait left on the pole, every second while the menu shows.
 	local tick = 1
@@ -463,10 +486,10 @@ local function BuildMenu()
 		tick = 0
 		local left = BaitLeft()
 		if left then
-			menu.lure:SetText(string.format("Bait %d:%02d", math.floor(left / 60), math.floor(left) % 60))
+			menu.lure:SetText(string.format(L["Bait %d:%02d"], math.floor(left / 60), math.floor(left) % 60))
 			menu.lure:SetTextColor(TextColor(left < 60 and "WARN" or "VALUE"))
 		else
-			menu.lure:SetText("No bait on")
+			menu.lure:SetText(L["No bait on"])
 			menu.lure:SetTextColor(TextColor("OFF"))
 		end
 	end)
@@ -505,12 +528,12 @@ function UpdateMenu()
 	cast:SetPoint("TOPLEFT", menu, "TOPLEFT", x, top)
 	cast:SetAttribute("macrotext", "/cast " .. FishingName())
 	cast.key:SetText(KeyText() or "")
-	cast.state:SetText(channeling and "Hook" or "Cast")
+	cast.state:SetText(channeling and L["Hook"] or L["Cast"])
 	UpdateCatch()
 	UpdateSkill()
 	local width = math.max(x + CAST_SIZE + PAD, WIDTH)
 	menu:SetSize(width, -top + CAST_SIZE + 26)
-	API.Skin(menu, { window = true })
+	SkinWindow(menu)
 end
 
 local function ShowMenu(show)
@@ -721,17 +744,17 @@ local enterSerial = 0
 local function Enter(resuming)
 	if active then return end
 	if InCombatLockdown() then
-		Print("Not in a fight.")
+		Print(L["Not in a fight."])
 		return
 	end
 	if not PoleEquipped() then
 		if resuming or not Get("equipPole") then
-			if not resuming then Print("Equip a fishing pole first.") end
+			if not resuming then Print(L["Equip a fishing pole first."]) end
 			return
 		end
 		local pole = FindPole()
 		if not pole then
-			Print("No fishing pole in your bags.")
+			Print(L["No fishing pole in your bags."])
 			return
 		end
 		-- What you held, to put back when Fishing Mode ends.
@@ -744,7 +767,7 @@ local function Enter(resuming)
 			if serial == enterSerial and equipping then
 				equipping = false
 				if active and not PoleEquipped() then
-					Print("The fishing pole couldn't go on.")
+					Print(L["The fishing pole couldn't go on."])
 					_G.DaylightFishing.Toggle(false)
 				end
 			end
@@ -818,7 +841,7 @@ end
 
 function Fishing.MakeMacro()
 	if InCombatLockdown() then
-		Print("Macros can't be made in a fight.")
+		Print(L["Macros can't be made in a fight."])
 		return
 	end
 	local icon = MacroIcon()
@@ -835,17 +858,18 @@ function Fishing.MakeMacro()
 		elseif (perChar or 0) < maxChar then
 			index = CreateMacro(MACRO_NAME, icon, MACRO_BODY, true)
 		else
-			Print("Your macros are full: delete one and try again.")
+			Print(L["Your macros are full: delete one and try again."])
 			return
 		end
 		made = true
 	end
 	if not index or index <= 0 then
-		Print("The macro couldn't be made.")
+		Print(L["The macro couldn't be made."])
 		return
 	end
 	PickupMacro(index)
-	Print((made and "Made" or "Updated") .. " the \"Fishing Mode\" macro. It's on your cursor: drop it on an action bar (it's in your macros too).")
+	Print(made and L["Made the \"Fishing Mode\" macro. It's on your cursor: drop it on an action bar (it's in your macros too)."]
+		or L["Updated the \"Fishing Mode\" macro. It's on your cursor: drop it on an action bar (it's in your macros too)."])
 end
 
 -- ---------------------------------------------------------------------------------------------
@@ -874,7 +898,7 @@ end
 function UpdateCatch()
 	if menu and menu.catch then
 		local n = Caught()
-		menu.catch.text:SetText("Caught " .. n)
+		menu.catch.text:SetText(L["Caught %d"]:format(n))
 		menu.catch.text:SetTextColor(TextColor(n > 0 and "VALUE" or "OFF"))
 		menu.catch:SetWidth(math.max(40, math.ceil(menu.catch.text:GetStringWidth()) + 4))
 	end
@@ -947,8 +971,8 @@ function RefreshPanel()
 	local n = Caught()
 	local items = 0
 	for _, item in ipairs(list) do items = items + item.count end
-	panel.total:SetText(string.format("%d %s, %d %s", n, n == 1 and "catch" or "catches",
-		items, items == 1 and "item" or "items"))
+	panel.total:SetText(L["%s, %s"]:format(Plural(n, L["%d catch"], L["%d catches"], L["%d catches#few"]),
+		Plural(items, L["%d item"], L["%d items"], L["%d items#few"])))
 	panel.total:SetTextColor(TextColor("TEXT"))
 	local top = -46
 	local shown = math.min(#list, MAX_ROWS)
@@ -967,11 +991,11 @@ function RefreshPanel()
 	for i = shown + 1, #panel.rows do panel.rows[i]:Hide() end
 	local bottom = top - shown * ROW
 	if #list == 0 then
-		panel.empty:SetText("Nothing caught yet.")
+		panel.empty:SetText(L["Nothing caught yet."])
 		panel.empty:Show()
 		bottom = bottom - 18
 	elseif #list > MAX_ROWS then
-		panel.empty:SetText(string.format("and %d more", #list - MAX_ROWS))
+		panel.empty:SetText(string.format(L["and %d more"], #list - MAX_ROWS))
 		panel.empty:Show()
 		bottom = bottom - 18
 	else
@@ -980,7 +1004,7 @@ function RefreshPanel()
 	panel.empty:ClearAllPoints()
 	panel.empty:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, top - shown * ROW - 2)
 	panel:SetSize(math.max(WIDTH, math.floor(menu:GetWidth() + 0.5)), -bottom + 38)
-	API.Skin(panel, { window = true })
+	SkinWindow(panel)
 end
 
 local function BuildPanel()
@@ -993,7 +1017,7 @@ local function BuildPanel()
 	panel.rows = {}
 	panel.title = API.Text(panel, "small", "LEFT")
 	panel.title:SetPoint("TOPLEFT", PAD, -8)
-	panel.title:SetText("Catch this session")
+	panel.title:SetText(L["Catch this session"])
 	panel.title:SetTextColor(API.Accent())
 	panel.total = API.Text(panel, "tiny", "LEFT")
 	panel.total:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -4)
@@ -1001,7 +1025,7 @@ local function BuildPanel()
 	panel.close:SetPoint("TOPRIGHT", -8, -7)
 	panel.empty = API.Text(panel, "small", "LEFT")
 	panel.empty:SetTextColor(TextColor("OFF"))
-	panel.clear = API.Button(panel, "Clear", 20)
+	panel.clear = API.Button(panel, L["Clear"], 20)
 	panel.clear:SetSize(70, 20)
 	panel.clear:SetPoint("BOTTOMRIGHT", -8, 8)
 	panel.clear:SetFrameLevel(panel:GetFrameLevel() + 10)
@@ -1027,44 +1051,45 @@ end
 -- usual "25 before your cap").
 local TOP_CAP = 300
 local RANKS = {
-	{ name = "Apprentice", cap = 75, trainAt = 0, how = "trainer" },
-	{ name = "Journeyman", cap = 150, trainAt = 50, how = "trainer" },
-	{ name = "Expert", cap = 225, trainAt = 125, level = 20, how = "book",
+	{ name = "Apprentice", title = L["Apprentice Fishing - Up to %d"], cap = 75, trainAt = 0, how = "trainer" },
+	{ name = "Journeyman", title = L["Journeyman Fishing - Up to %d"], cap = 150, trainAt = 50, how = "trainer" },
+	{ name = "Expert", title = L["Expert Fishing - Up to %d"], cap = 225, trainAt = 125, level = 20, how = "book",
 	  item = 16083, itemName = "Expert Fishing - The Bass and You", price = 10000, who = "Old Man Heming",
-	  spot = { map = 1434, x = 27.4, y = 77.0, zone = "Booty Bay" } },
-	{ name = "Artisan", cap = 300, trainAt = 225, level = 35, how = "quest",
+	  spot = { map = 1434, x = 27.4, y = 77.0, zone = "Booty Bay", area = 35 } },
+	{ name = "Artisan", title = L["Artisan Fishing - Up to %d"], cap = 300, trainAt = 225, level = 35, how = "quest",
 	  quest = 6607, questName = "Nat Pagle, Angler Extreme", who = "Nat Pagle",
-	  spot = { map = 1445, x = 58.6, y = 60.0, zone = "Dustwallow Marsh" } },
+	  spot = { map = 1445, x = 58.6, y = 60.0, zone = "Dustwallow Marsh", onMap = true } },
 }
 
 -- The fishing trainers (Apprentice and Journeyman), from the same pages. side: "A", "H", or nil for
--- neutral. map: the zone's map; Riverglades (a Forever zone) is found by name in the game's own map
--- list, since its map number isn't written anywhere we have.
+-- neutral. map: the zone's map (Riverglades, a Forever zone, is 2548: its Powderfuse Port area 16727
+-- sits on that map in the game's area-to-map table). zone: the place's English name; area: its area
+-- number, or onMap when the place is the whole map, so other languages get the game's own name.
 local TRAINERS = {
-	{ name = "Androl Oakhand", side = "A", map = 1438, x = 56.0, y = 93.6, zone = "Rut'theran Village" },
-	{ name = "Arnold Leland", side = "A", map = 1453, x = 55.0, y = 69.6, zone = "Stormwind" },
-	{ name = "Astaia", side = "A", map = 1457, x = 47.6, y = 56.6, zone = "Darnassus" },
-	{ name = "Brannock", side = "A", map = 1444, x = 32.2, y = 41.6, zone = "Feathermoon Stronghold" },
-	{ name = "Donald Rabonne", side = "A", map = 1424, x = 50.6, y = 61.0, zone = "Southshore" },
-	{ name = "Grimnur Stonebrand", side = "A", map = 1455, x = 48.4, y = 6.4, zone = "Ironforge" },
-	{ name = "Harold Riggs", side = "A", map = 1437, x = 8.2, y = 58.6, zone = "Menethil Harbor" },
-	{ name = "Lee Brown", side = "A", map = 1429, x = 47.6, y = 62.2, zone = "Goldshire" },
-	{ name = "Matthew Hooper", side = "A", map = 1433, x = 26.8, y = 50.4, zone = "Lakeshire" },
-	{ name = "Paxton Ganter", side = "A", map = 1426, x = 35.6, y = 40.4, zone = "Brewnall Village" },
-	{ name = "Warg Deepwater", side = "A", map = 1432, x = 40.6, y = 39.6, zone = "Thelsamar" },
-	{ name = "Armand Cromwell", side = "H", map = 1458, x = 80.8, y = 31.2, zone = "Undercity" },
-	{ name = "Clyde Kellen", side = "H", map = 1420, x = 67.2, y = 51.0, zone = "Brightwater Lake" },
-	{ name = "Kah Mistrunner", side = "H", map = 1456, x = 56.0, y = 46.8, zone = "Thunder Bluff" },
-	{ name = "Katoom the Angler", side = "H", map = 1425, x = 80.2, y = 81.4, zone = "Revantusk Village" },
-	{ name = "Kil'Hiwana", side = "H", map = 1440, x = 10.8, y = 33.6, zone = "Ashenvale" },
-	{ name = "Lau'Tiki", side = "H", map = 1411, x = 53.2, y = 81.6, zone = "Sen'jin Village" },
-	{ name = "Lui'Mala", side = "H", map = 1443, x = 22.6, y = 72.6, zone = "Shadowprey Village" },
-	{ name = "Lumak", side = "H", map = 1454, x = 69.8, y = 29.6, zone = "Orgrimmar" },
-	{ name = "Uthan Stillwater", side = "H", map = 1412, x = 44.6, y = 60.6, zone = "Bloodhoof Village" },
-	{ name = "Myizz Luckycatch", map = 1434, x = 27.6, y = 77.0, zone = "Booty Bay" },
-	{ name = "Fenn Fairweather", map = 2521, x = 45.0, y = 48.4, zone = "Shen'dar Village" },
-	{ name = "Baelann Swiftcurrent", map = 2521, x = 63.2, y = 75.6, zone = "Valanaar" },
-	{ name = "Krix", find = "Riverglades", x = 79.2, y = 54.6, zone = "Powderfuse Port" },
+	{ name = "Androl Oakhand", side = "A", map = 1438, x = 56.0, y = 93.6, zone = "Rut'theran Village", area = 702 },
+	{ name = "Arnold Leland", side = "A", map = 1453, x = 55.0, y = 69.6, zone = "Stormwind", onMap = true },
+	{ name = "Astaia", side = "A", map = 1457, x = 47.6, y = 56.6, zone = "Darnassus", onMap = true },
+	{ name = "Brannock", side = "A", map = 1444, x = 32.2, y = 41.6, zone = "Feathermoon Stronghold", area = 1116 },
+	{ name = "Donald Rabonne", side = "A", map = 1424, x = 50.6, y = 61.0, zone = "Southshore", area = 271 },
+	{ name = "Grimnur Stonebrand", side = "A", map = 1455, x = 48.4, y = 6.4, zone = "Ironforge", onMap = true },
+	{ name = "Harold Riggs", side = "A", map = 1437, x = 8.2, y = 58.6, zone = "Menethil Harbor", area = 150 },
+	{ name = "Lee Brown", side = "A", map = 1429, x = 47.6, y = 62.2, zone = "Goldshire", area = 87 },
+	{ name = "Matthew Hooper", side = "A", map = 1433, x = 26.8, y = 50.4, zone = "Lakeshire", area = 69 },
+	{ name = "Paxton Ganter", side = "A", map = 1426, x = 35.6, y = 40.4, zone = "Brewnall Village", area = 137 },
+	{ name = "Warg Deepwater", side = "A", map = 1432, x = 40.6, y = 39.6, zone = "Thelsamar", area = 144 },
+	{ name = "Armand Cromwell", side = "H", map = 1458, x = 80.8, y = 31.2, zone = "Undercity", onMap = true },
+	{ name = "Clyde Kellen", side = "H", map = 1420, x = 67.2, y = 51.0, zone = "Brightwater Lake", area = 162 },
+	{ name = "Kah Mistrunner", side = "H", map = 1456, x = 56.0, y = 46.8, zone = "Thunder Bluff", onMap = true },
+	{ name = "Katoom the Angler", side = "H", map = 1425, x = 80.2, y = 81.4, zone = "Revantusk Village", area = 3317 },
+	{ name = "Kil'Hiwana", side = "H", map = 1440, x = 10.8, y = 33.6, zone = "Ashenvale", onMap = true },
+	{ name = "Lau'Tiki", side = "H", map = 1411, x = 53.2, y = 81.6, zone = "Sen'jin Village", area = 367 },
+	{ name = "Lui'Mala", side = "H", map = 1443, x = 22.6, y = 72.6, zone = "Shadowprey Village", area = 2408 },
+	{ name = "Lumak", side = "H", map = 1454, x = 69.8, y = 29.6, zone = "Orgrimmar", onMap = true },
+	{ name = "Uthan Stillwater", side = "H", map = 1412, x = 44.6, y = 60.6, zone = "Bloodhoof Village", area = 222 },
+	{ name = "Myizz Luckycatch", map = 1434, x = 27.6, y = 77.0, zone = "Booty Bay", area = 35 },
+	{ name = "Fenn Fairweather", map = 2521, x = 45.0, y = 48.4, zone = "Shen'dar Village", area = 16624 },
+	{ name = "Baelann Swiftcurrent", map = 2521, x = 63.2, y = 75.6, zone = "Valanaar", area = 16638 },
+	{ name = "Krix", map = 2548, x = 79.2, y = 54.6, zone = "Powderfuse Port", area = 16727 },
 }
 
 -- skill, cap (nil, nil when Fishing isn't learned).
@@ -1105,9 +1130,9 @@ function UpdateSkill()
 	local skill, cap = FishingSkill()
 	local bar, mark = menu.skillBar, menu.skillMark
 	if not skill then
-		menu.skillText:SetText("Fishing Skill")
+		menu.skillText:SetText(L["Fishing Skill"])
 		menu.skillText:SetTextColor(TextColor("LABEL"))
-		menu.skillMax:SetText("not learned")
+		menu.skillMax:SetText(L["not learned"])
 		menu.skillMax:SetTextColor(TextColor("LABEL"))
 		bar:SetMinMaxValues(0, 1)
 		bar:SetValue(0)
@@ -1115,7 +1140,7 @@ function UpdateSkill()
 		return
 	end
 	-- At the top rank there's nothing left to train: it says so instead.
-	menu.skillText:SetText((cap and cap >= TOP_CAP) and "Maximum Fishing Trained" or "Fishing Skill")
+	menu.skillText:SetText((cap and cap >= TOP_CAP) and L["Maximum Fishing Trained"] or L["Fishing Skill"])
 	menu.skillText:SetTextColor(TextColor("LABEL"))
 	menu.skillMax:SetText(skill .. " / " .. (cap or skill))
 	menu.skillMax:SetTextColor(TextColor("LABEL"))
@@ -1133,19 +1158,59 @@ function UpdateSkill()
 	end
 end
 
--- An amount of money as plain short text: "1g", "1g 50s", "75s".
+-- An amount of money as plain short text: "1g", "1g 50s", "75s" (the game's own letters).
+local GOLD, SILVER, COPPER = GOLD_AMOUNT_SYMBOL or "g", SILVER_AMOUNT_SYMBOL or "s", COPPER_AMOUNT_SYMBOL or "c"
 local function MoneyText(copper)
 	local g, s, c = math.floor(copper / 10000), math.floor(copper % 10000 / 100), copper % 100
 	local parts = {}
-	if g > 0 then parts[#parts + 1] = g .. "g" end
-	if s > 0 then parts[#parts + 1] = s .. "s" end
-	if c > 0 or #parts == 0 then parts[#parts + 1] = c .. "c" end
+	if g > 0 then parts[#parts + 1] = g .. GOLD end
+	if s > 0 then parts[#parts + 1] = s .. SILVER end
+	if c > 0 or #parts == 0 then parts[#parts + 1] = c .. COPPER end
 	return table.concat(parts, " ")
+end
+
+-- Names in the game's language. On an English client the names written above stay as they are;
+-- elsewhere the place comes from its area (or map) number, the book and the quest from their
+-- numbers, and the English name stands in until the game has loaded the item or quest (its answer
+-- redraws the box).
+local ENGLISH = not GetLocale or GetLocale():sub(1, 2) == "en"
+
+local function PlaceName(spot)
+	if ENGLISH then return spot.zone end
+	local name
+	if spot.area and C_Map.GetAreaInfo then
+		name = C_Map.GetAreaInfo(spot.area)
+	elseif spot.onMap and spot.map then
+		local info = C_Map.GetMapInfo(spot.map)
+		name = info and info.name
+	end
+	return (type(name) == "string" and name ~= "") and name or spot.zone
+end
+
+local function BookName(rank)
+	if ENGLISH or not C_Item then return rank.itemName end
+	local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(rank.item)
+	if name and name ~= "" then return name end
+	if C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(rank.item) end
+	return rank.itemName
+end
+
+local function QuestName(rank)
+	if ENGLISH or not C_QuestLog then return rank.questName end
+	local name = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(rank.quest)
+	if name and name ~= "" then return name end
+	if C_QuestLog.RequestLoadQuestByID then C_QuestLog.RequestLoadQuestByID(rank.quest) end
+	return rank.questName
 end
 
 -- A rank's heading: "Expert Fishing - Up to 225".
 local function RankTitle(rank)
-	return ("%s Fishing - Up to %d"):format(rank.name, rank.cap)
+	return rank.title:format(rank.cap)
+end
+
+-- Two whole sentences, one after the other (Chinese puts no space between them).
+local function Then(first, second)
+	return L["%s %s"]:format(first, second)
 end
 
 -- What the next rank takes, short: where to get it, then the skill it's usable at. The level only
@@ -1153,22 +1218,22 @@ end
 local function HowText(rank)
 	local text
 	if rank.how == "book" then
-		text = ("Purchase \"%s\" from %s in %s for %s."):format(rank.itemName, rank.who, rank.spot.zone, MoneyText(rank.price))
+		text = L["Purchase \"%s\" from %s in %s for %s."]:format(BookName(rank), rank.who, PlaceName(rank.spot), MoneyText(rank.price))
 	elseif rank.how == "quest" then
-		text = ("Complete \"%s\" from %s in %s."):format(rank.questName, rank.who, rank.spot.zone)
+		text = L["Complete \"%s\" from %s in %s."]:format(QuestName(rank), rank.who, PlaceName(rank.spot))
 	else
-		text = "Train with any fishing trainer."
+		text = L["Train with any fishing trainer."]
 	end
 	-- The book is usable at a skill, a trainer's rank trainable at it, the quest obtainable at it
 	-- (with its level, which it always names).
 	if rank.how == "quest" then
-		text = text .. (" Obtainable at %d Fishing and Level %d."):format(rank.trainAt, rank.level)
+		text = Then(text, L["Obtainable at %d Fishing and Level %d."]:format(rank.trainAt, rank.level))
 		return text
 	elseif rank.trainAt > 0 then
-		text = text .. ((rank.how == "book" and " Usable at %d Fishing." or " Trainable at %d Fishing.")):format(rank.trainAt)
+		text = Then(text, (rank.how == "book" and L["Usable at %d Fishing."] or L["Trainable at %d Fishing."]):format(rank.trainAt))
 	end
 	if rank.level and (UnitLevel("player") or 0) < rank.level then
-		text = text .. (" Needs level %d."):format(rank.level)
+		text = Then(text, L["Needs level %d."]:format(rank.level))
 	end
 	return text
 end
@@ -1180,7 +1245,7 @@ function Fishing.SkillTooltip(anchor)
 	local rank = NextRank(skill, cap)
 	GameTooltip:SetOwner(anchor, "ANCHOR_TOP")
 	if not rank then
-		GameTooltip:SetText("Fishing - Maximum Trained")
+		GameTooltip:SetText(L["Fishing - Maximum Trained"])
 		GameTooltip:Show()
 		return
 	end
@@ -1191,10 +1256,10 @@ function Fishing.SkillTooltip(anchor)
 	GameTooltip:AddLine(HowText(rank), r, g, b, true)
 	if CanLearn(rank, skill) then
 		r, g, b = TextColor("GOOD")
-		GameTooltip:AddLine("You can learn it now.", r, g, b)
+		GameTooltip:AddLine(L["You can learn it now."], r, g, b)
 	end
 	r, g, b = TextColor("OFF")
-	GameTooltip:AddLine("Click: where to go", r, g, b)
+	GameTooltip:AddLine(L["Click: where to go"], r, g, b)
 	GameTooltip:Show()
 end
 
@@ -1205,24 +1270,11 @@ end
 local box
 local RefreshBox
 
--- A zone found by name (once) in the game's map list: Azeroth, Kalimdor, the Eastern Kingdoms.
-local foundMaps = {}
+-- A spot's map, when the game has it (Riverglades only exists on Forever).
 local function MapOf(spot)
-	if spot.map then return spot.map end
-	local want = spot.find
-	if not want then return nil end
-	if foundMaps[want] ~= nil then return foundMaps[want] or nil end
-	local id = false
-	local zone = Enum and Enum.UIMapType and Enum.UIMapType.Zone
-	for _, root in ipairs({ 1415, 1414, 947 }) do
-		local ok, kids = pcall(C_Map.GetMapChildrenInfo, root, zone, true)
-		for _, m in ipairs(ok and type(kids) == "table" and kids or {}) do
-			if m.name == want then id = m.mapID break end
-		end
-		if id then break end
-	end
-	foundMaps[want] = id
-	return id or nil
+	local map = spot.map
+	if not map or not C_Map.GetMapInfo then return map end
+	return C_Map.GetMapInfo(map) and map or nil
 end
 
 -- Where you are, in world terms: continent, x, y.
@@ -1246,9 +1298,9 @@ end
 
 local function Waypoint(name, spot)
 	local map = MapOf(spot)
-	local where = ("%s, %s (%d, %d)"):format(name, spot.zone, spot.x + 0.5, spot.y + 0.5)
+	local where = ("%s, %s (%d, %d)"):format(name, PlaceName(spot), spot.x + 0.5, spot.y + 0.5)
 	if not map then
-		Print(where .. ".")
+		Print(L["%s."]:format(where))
 		return false
 	end
 	local tomtom = _G.TomTom
@@ -1256,13 +1308,13 @@ local function Waypoint(name, spot)
 		pcall(tomtom.AddWaypoint, tomtom, map, spot.x / 100, spot.y / 100, { title = name, from = "Daylight Fishing" })
 	elseif C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
 		if C_Map.CanSetUserWaypointOnMap and not C_Map.CanSetUserWaypointOnMap(map) then
-			Print(where .. ". The map there takes no pins.")
+			Print(L["%s. The map there takes no pins."]:format(where))
 			return false
 		end
 		pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(map, spot.x / 100, spot.y / 100))
 		if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
 	end
-	Print("Waypoint: " .. where .. ".")
+	Print(L["Waypoint: %s."]:format(where))
 	return true
 end
 
@@ -1302,12 +1354,12 @@ local function BoxRow(i)
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		if self.item then
 			GameTooltip:SetItemByID(self.item)
-			GameTooltip:AddLine(("Sold by %s, %s (%d, %d)"):format(self.who, self.spot.zone, self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
+			GameTooltip:AddLine(L["Sold by %s, %s (%d, %d)"]:format(self.who, PlaceName(self.spot), self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
 		else
 			GameTooltip:SetText(self.who)
-			GameTooltip:AddLine(("%s (%d, %d)"):format(self.spot.zone, self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
+			GameTooltip:AddLine(("%s (%d, %d)"):format(PlaceName(self.spot), self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
 		end
-		GameTooltip:AddLine("Click for a waypoint.", TextColor("LABEL"))
+		GameTooltip:AddLine(L["Click for a waypoint."], TextColor("LABEL"))
 		GameTooltip:Show()
 	end)
 	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1324,10 +1376,10 @@ local function Allowed(side)
 	return side == (UnitFactionGroup("player") == "Horde" and "H" or "A")
 end
 
-local SIDE_WORDS = { A = "Alliance", H = "Horde" }
+local SIDE_WORDS = { A = FACTION_ALLIANCE or "Alliance", H = FACTION_HORDE or "Horde" }
 
 local function YardsText(d)
-	return d and (math.floor(d / 10 + 0.5) * 10 .. " yd") or ""
+	return d and L["%d yd"]:format(math.floor(d / 10 + 0.5) * 10) or ""
 end
 
 function RefreshBox()
@@ -1338,21 +1390,21 @@ function RefreshBox()
 	-- The places to go: the closest trainers, or the one seller or quest giver.
 	local list = {}
 	if not rank then
-		box.title:SetText("Fishing - Maximum Trained")
-		box.sub:SetText("You have the highest rank of Fishing.")
+		box.title:SetText(L["Fishing - Maximum Trained"])
+		box.sub:SetText(L["You have the highest rank of Fishing."])
 	elseif rank.how == "trainer" then
 		box.title:SetText(RankTitle(rank))
 		box.sub:SetText(HowText(rank))
 		for _, t in ipairs(TRAINERS) do
 			if Allowed(t.side) then
 				list[#list + 1] = { who = t.name, spot = t, dist = Distance(t, continent, px, py),
-					side = SIDE_WORDS[t.side] or "Neutral" }
+					side = SIDE_WORDS[t.side] or FACTION_NEUTRAL or "Neutral", place = PlaceName(t) }
 			end
 		end
 		table.sort(list, function(a, b)
 			if a.dist and b.dist then return a.dist < b.dist end
 			if a.dist or b.dist then return a.dist ~= nil end
-			if a.spot.zone ~= b.spot.zone then return a.spot.zone < b.spot.zone end
+			if a.place ~= b.place then return a.place < b.place end
 			return a.who < b.who
 		end)
 	else
@@ -1374,7 +1426,7 @@ function RefreshBox()
 		row.name:SetTextColor(TextColor("VALUE"))
 		row.dist:SetText(YardsText(e.dist))
 		row.dist:SetTextColor(TextColor("LABEL"))
-		local place = ("%s (%d, %d)"):format(e.spot.zone, e.spot.x + 0.5, e.spot.y + 0.5)
+		local place = ("%s (%d, %d)"):format(PlaceName(e.spot), e.spot.x + 0.5, e.spot.y + 0.5)
 		row.place:SetText(e.side and (place .. "  ·  " .. e.side) or place)
 		row.place:SetTextColor(API.Accent())
 		row:ClearAllPoints()
@@ -1386,14 +1438,14 @@ function RefreshBox()
 	local bottom = top - shown * (BOX_ROW + 4) + (shown > 0 and 4 or 6)
 	box.note:SetTextColor(TextColor("OFF"))
 	if GetTime() < pinnedUntil then
-		box.note:SetText("Location Pinned")
+		box.note:SetText(L["Location Pinned"])
 		box.note:SetTextColor(TextColor("GOOD"))
 	elseif not rank then
 		box.note:SetText("")
 	elseif rank.how == "trainer" then
-		box.note:SetText(#list == 0 and "No fishing trainer found for your faction." or "Closest first. Click one for a waypoint.")
+		box.note:SetText(#list == 0 and L["No fishing trainer found for your faction."] or L["Closest first. Click one for a waypoint."])
 	else
-		box.note:SetText("Click for a waypoint.")
+		box.note:SetText(L["Click for a waypoint."])
 	end
 	box.note:ClearAllPoints()
 	box.note:SetPoint("TOPLEFT", box, "TOPLEFT", PAD, bottom - 4)
@@ -1402,7 +1454,7 @@ function RefreshBox()
 		bottom = bottom - 4 - math.ceil(box.note:GetStringHeight())
 	end
 	box:SetHeight(-bottom + 10)
-	API.Skin(box, { window = true })
+	SkinWindow(box)
 end
 
 local function BuildBox()
@@ -1440,10 +1492,10 @@ end
 function Fishing.CatchTooltip(tip, title)
 	local s = char and Session()
 	local n = s and s.caught or 0
-	if title then tip:SetText("This session's catch") end
-	tip:AddDoubleLine("Fish caught", tostring(n), 1, 1, 1, API.Accent())
+	if title then tip:SetText(L["This session's catch"]) end
+	tip:AddDoubleLine(L["Fish caught"], tostring(n), 1, 1, 1, API.Accent())
 	if n == 0 then
-		tip:AddLine("Nothing caught yet.", TextColor("OFF"))
+		tip:AddLine(L["Nothing caught yet."], TextColor("OFF"))
 		return
 	end
 	local list = Fishing.SortedCatch()
@@ -1453,7 +1505,7 @@ function Fishing.CatchTooltip(tip, title)
 		tip:AddDoubleLine(icon .. (item.link or item.name or "?"), "x" .. item.count, 1, 1, 1, TextColor("VALUE"))
 	end
 	if #list > MAX_LINES then
-		tip:AddLine(string.format("and %d more", #list - MAX_LINES), TextColor("OFF"))
+		tip:AddLine(string.format(L["and %d more"], #list - MAX_LINES), TextColor("OFF"))
 	end
 end
 
@@ -1516,10 +1568,10 @@ local function ShowPopup(caught, items)
 	if not active or not Get("catchPopup") then return end
 	BuildPopup()
 	if caught then
-		popup.title:SetText("Fish Caught!")
+		popup.title:SetText(L["Fish Caught!"])
 		popup.title:SetTextColor(TextColor("GOOD"))
 	else
-		popup.title:SetText("Fish Got Away")
+		popup.title:SetText(L["Fish Got Away"])
 		popup.title:SetTextColor(TextColor("BAD"))
 	end
 	items = items or {}
@@ -1545,7 +1597,7 @@ local function ShowPopup(caught, items)
 	else
 		popup:SetPoint("CENTER", UIParent, "CENTER", -240, -190)
 	end
-	API.Skin(popup, { window = true })
+	SkinWindow(popup)
 	popup.age = 0
 	popup:SetAlpha(0)
 	popup:Show()
@@ -1604,39 +1656,39 @@ function UpdateBroker()
 	local n = Caught()
 	local count = n > 0 and (" · " .. n) or ""
 	if active then
-		broker.text = "On" .. count
+		broker.text = L["On"] .. count
 	else
 		local r, g, b = TextColor("OFF")
-		broker.text = string.format("|cff%02x%02x%02xOff|r", r * 255, g * 255, b * 255) .. count
+		broker.text = string.format("|cff%02x%02x%02x%s|r", r * 255, g * 255, b * 255, L["Off"]) .. count
 	end
 end
 
 if LDB then
 	broker = LDB:NewDataObject("Daylight Fishing", {
 		type = "data source",
-		label = "Fishing Mode",
-		text = "Off",
+		label = L["Fishing Mode"],
+		text = L["Off"],
 		icon = POLE_ICON,
 		OnClick = function(_, button)
 			if button == "RightButton" then
 				if IsShiftKeyDown() then
 					Fishing.ResetCatch()
-					Print("This session's catch is cleared.")
+					Print(L["This session's catch is cleared."])
 				end
 				return
 			end
 			Fishing.Toggle()
 		end,
 		OnTooltipShow = function(tip)
-			tip:AddLine("Fishing Mode: " .. (active and "on" or "off"))
+			tip:AddLine(active and L["Fishing Mode: on"] or L["Fishing Mode: off"])
 			local key = KeyText()
-			if key then tip:AddLine("Fishing key: " .. key, 1, 1, 1) end
+			if key then tip:AddLine(L["Fishing key: %s"]:format(key), 1, 1, 1) end
 			local left = BaitLeft()
-			if active and left then tip:AddLine(string.format("Bait on the pole: %d:%02d", left / 60, left % 60), 1, 1, 1) end
+			if active and left then tip:AddLine(string.format(L["Bait on the pole: %d:%02d"], left / 60, left % 60), 1, 1, 1) end
 			tip:AddLine(" ")
 			Fishing.CatchTooltip(tip)
-			tip:AddLine("Click: turn Fishing Mode " .. (active and "off" or "on"), 0.8, 0.8, 0.8)
-			tip:AddLine("Shift-right-click: clear this session's catch", 0.8, 0.8, 0.8)
+			tip:AddLine(active and L["Click: turn Fishing Mode off"] or L["Click: turn Fishing Mode on"], 0.8, 0.8, 0.8)
+			tip:AddLine(L["Shift-right-click: clear this session's catch"], 0.8, 0.8, 0.8)
 		end,
 	})
 end
@@ -1662,6 +1714,10 @@ events:RegisterEvent("CHAT_MSG_SKILL")
 events:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
+if not ENGLISH then
+	events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+	events:RegisterEvent("QUEST_DATA_LOAD_RESULT")
+end
 
 local function IsFishing(spellID)
 	if spellID == nil or (issecretvalue and issecretvalue(spellID)) then return false end
@@ -1722,7 +1778,7 @@ local function Login()
 	end)
 	UpdateBroker()
 	if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("ForeverFishing") then
-		Print("Forever Fishing is loaded too: give the two different keys, or turn one off.")
+		Print(L["Forever Fishing is loaded too: give the two different keys, or turn one off."])
 	end
 end
 me.On("Login", Login)
@@ -1735,6 +1791,12 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 		return
 	end
 	if not db then return end
+	if event == "GET_ITEM_INFO_RECEIVED" or event == "QUEST_DATA_LOAD_RESULT" then
+		-- The book's or the quest's name in the game's language came in: the box shows it.
+		-- (Only when it loaded: a failed load would ask again, and again.)
+		if (a == 16083 or a == 6607) and b and RefreshBox then RefreshBox() end
+		return
+	end
 	if event == "LOOT_READY" or event == "LOOT_OPENED" then
 		TakeCatch()
 	elseif event == "LOOT_CLOSED" then
@@ -1782,13 +1844,13 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 			castSerial = castSerial + 1
 			pendingCast, castMoved = nil, false
 			UpdateBinding()
-			if cast then cast.state:SetText("Hook") end
+			if cast then cast.state:SetText(L["Hook"]) end
 		end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
 		if channeling then
 			channeling = false
 			BindWhenReleased()
-			if cast then cast.state:SetText("Cast") end
+			if cast then cast.state:SetText(L["Cast"]) end
 			if IsFalling() then castMoved = true end
 			if not castMoved and resolvedCast ~= castSerial then
 				local serial = castSerial
@@ -1819,79 +1881,93 @@ end)
 -- ---------------------------------------------------------------------------------------------
 
 local KEYS = {
-	NONE = "No key (click the cast button)",
-	SPACE = "Space",
-	BUTTON3 = "Middle mouse button",
-	BUTTON4 = "Mouse button 4",
-	BUTTON5 = "Mouse button 5",
+	NONE = L["No key (click the cast button)"],
+	SPACE = L["Space"],
+	BUTTON3 = L["Middle mouse button"],
+	BUTTON4 = L["Mouse button 4"],
+	BUTTON5 = L["Mouse button 5"],
 	F = "F", G = "G", R = "R", T = "T", Z = "Z", X = "X", C = "C", V = "V",
-	BACKSPACE = "Backspace",
-	["`"] = "` (backquote)",
+	BACKSPACE = L["Backspace"],
+	["`"] = L["` (backquote)"],
 }
+-- Other languages: the game's own names for the named keys.
+if not ENGLISH and GetBindingText then
+	for _, key in ipairs({ "SPACE", "BUTTON3", "BUTTON4", "BUTTON5", "BACKSPACE" }) do
+		local text = GetBindingText(key)
+		if type(text) == "string" and text ~= "" and text ~= key then KEYS[key] = text end
+	end
+end
 
 local function NotSound(get) return get("sound") == false end
 
 local pages = {
-	{ id = "fishing", label = "Fishing",
-	  desc = "Fishing Mode: put \"Fishing Mode\" in a data text slot (Info Panel, Data texts) and click it, or type /dui fish.",
+	{ id = "fishing", label = L["Fishing"],
+	  desc = L["Fishing Mode: put \"Fishing Mode\" in a data text slot (Info Panel, Data texts) and click it, or type /dui fish."],
 	  groups = {
-		{ label = "Fishing Mode", items = {
-			{ type = "button", label = "Turn Fishing Mode on or off", func = function() Fishing.Toggle() end },
-			{ type = "button", label = "Make a Fishing Mode macro", func = function() Fishing.MakeMacro() end,
-			  desc = "A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and off. It goes on your cursor: drop it on an action bar." },
-			{ type = "toggle", key = "autoMode", label = "Turn on when I equip a pole",
-			  desc = "Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off." },
-			{ type = "dropdown", key = "key", label = "Fishing key", values = KEYS,
-			  desc = "While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts." },
-			{ type = "button", label = "Clear this session's catch", func = function() Fishing.ResetCatch() end },
-			{ type = "toggle", key = "equipPole", label = "Put my fishing pole on",
-			  desc = "Fishing Mode puts on the best fishing pole in your bags." },
-			{ type = "toggle", key = "restoreWeapons", label = "Put my weapons back on",
-			  desc = "When you turn Fishing Mode off or get into a fight, the weapons you held go back on." },
+		{ label = L["Fishing Mode"], items = {
+			{ type = "button", label = L["Turn Fishing Mode on or off"], func = function() Fishing.Toggle() end },
+			{ type = "button", label = L["Make a Fishing Mode macro"], func = function() Fishing.MakeMacro() end,
+			  desc = L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and off. It goes on your cursor: drop it on an action bar."] },
+			{ type = "toggle", key = "autoMode", label = L["Turn on when I equip a pole"],
+			  desc = L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] },
+			{ type = "dropdown", key = "key", label = L["Fishing key"], values = KEYS,
+			  desc = L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] },
+			{ type = "button", label = L["Clear this session's catch"], func = function() Fishing.ResetCatch() end },
+			{ type = "toggle", key = "equipPole", label = L["Put my fishing pole on"],
+			  desc = L["Fishing Mode puts on the best fishing pole in your bags."] },
+			{ type = "toggle", key = "restoreWeapons", label = L["Put my weapons back on"],
+			  desc = L["When you turn Fishing Mode off or get into a fight, the weapons you held go back on."] },
 		} },
-		{ label = "Fishing menu", items = {
-			{ type = "toggle", key = "showMenu", label = "Show the fishing menu",
-			  desc = "Your baits and the cast button under your character. Move it with /dui unlock." },
-			{ type = "slider", key = "menuScale", label = "Menu size", min = 0.7, max = 1.6, step = 0.05, unit = "%",
-			  desc = "How big the fishing menu is." },
+		{ label = L["Fishing menu"], items = {
+			{ type = "toggle", key = "showMenu", label = L["Show the fishing menu"],
+			  desc = L["Your baits and the cast button under your character. Move it with /dui unlock."] },
+			{ type = "slider", key = "menuScale", label = L["Menu size"], min = 0.7, max = 1.6, step = 0.05, unit = "%",
+			  desc = L["How big the fishing menu is."] },
 		} },
-		{ label = "Quiet screen", items = {
-			{ type = "toggle", key = "fadeUI", label = "Fade the UI while fishing",
-			  desc = "Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends." },
-			{ type = "slider", key = "fadeAlpha", label = "Faded UI opacity", min = 0, max = 0.6, step = 0.05, unit = "%",
-			  desc = "How much of the UI still shows while faded. 0 hides it.",
-			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "slider", key = "fadeDelay", label = "Fade after standing still", min = 0, max = 10, step = 0.5, unit = "s",
-			  desc = "Seconds of standing still before the UI fades.",
-			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "keepMinimap", label = "Keep the minimap",
-			  desc = "The minimap stays while the rest of the UI fades.",
-			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "keepChat", label = "Keep the chat",
-			  desc = "Your chat windows, their tabs and the chat box stay while the rest of the UI fades.",
-			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "catchPopup", label = "Catch popup",
-			  desc = "A note at the fishing menu's left after each cast: \"Fish Caught!\" with what came up, or \"Fish Got Away\"." },
-			{ type = "toggle", key = "hideWater", label = "Hide DaylightUI's fishing water",
-			  desc = "The water and bobber DaylightUI draws along the bottom of the screen while your line is in. Hidden while Fishing Mode is on, and back as it was when it ends. DaylightUI's own switch for it stays in Quality of Life." },
+		{ label = L["Look"], items = {
+			{ type = "toggle", key = "duiOpacity", label = L["Use DaylightUI's opacity"],
+			  desc = L["The fishing menu and its boxes follow DaylightUI's window opacity."] },
+			{ type = "slider", key = "opacity", label = L["Window opacity"], min = 0.1, max = 1, step = 0.05, unit = "%",
+			  desc = L["How solid their backgrounds are, with DaylightUI's opacity off."],
+			  disabled = function(get) return get("duiOpacity") ~= false end },
 		} },
-		{ label = "Sound while fishing", items = {
-			{ type = "toggle", key = "sound", label = "Set the sound for fishing",
-			  desc = "Sound effects up so you hear the splash, music and ambience down. Your own sound settings come back when Fishing Mode ends." },
-			{ type = "slider", key = "sfxVolume", label = "Effects volume", min = 0, max = 1, step = 0.05, unit = "%",
-			  desc = "The splash of a bite is an effect.", disabled = NotSound },
-			{ type = "slider", key = "musicVolume", label = "Music volume", min = 0, max = 1, step = 0.05, unit = "%",
+		{ label = L["Quiet screen"], items = {
+			{ type = "toggle", key = "fadeUI", label = L["Fade the UI while fishing"],
+			  desc = L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."] },
+			{ type = "slider", key = "fadeAlpha", label = L["Faded UI opacity"], min = 0, max = 0.6, step = 0.05, unit = "%",
+			  desc = L["How much of the UI still shows while faded. 0 hides it."],
+			  disabled = function(get) return get("fadeUI") == false end },
+			{ type = "slider", key = "fadeDelay", label = L["Fade after standing still"], min = 0, max = 10, step = 0.5, unit = "s",
+			  desc = L["Seconds of standing still before the UI fades."],
+			  disabled = function(get) return get("fadeUI") == false end },
+			{ type = "toggle", key = "keepMinimap", label = L["Keep the minimap"],
+			  desc = L["The minimap stays while the rest of the UI fades."],
+			  disabled = function(get) return get("fadeUI") == false end },
+			{ type = "toggle", key = "keepChat", label = L["Keep the chat"],
+			  desc = L["Your chat windows, their tabs and the chat box stay while the rest of the UI fades."],
+			  disabled = function(get) return get("fadeUI") == false end },
+			{ type = "toggle", key = "catchPopup", label = L["Catch popup"],
+			  desc = L["A note at the fishing menu's left after each cast: \"Fish Caught!\" with what came up, or \"Fish Got Away\"."] },
+			{ type = "toggle", key = "hideWater", label = L["Hide DaylightUI's fishing water"],
+			  desc = L["The water and bobber DaylightUI draws along the bottom of the screen while your line is in. Hidden while Fishing Mode is on, and back as it was when it ends. DaylightUI's own switch for it stays in Quality of Life."] },
+		} },
+		{ label = L["Sound while fishing"], items = {
+			{ type = "toggle", key = "sound", label = L["Set the sound for fishing"],
+			  desc = L["Sound effects up so you hear the splash, music and ambience down. Your own sound settings come back when Fishing Mode ends."] },
+			{ type = "slider", key = "sfxVolume", label = L["Effects volume"], min = 0, max = 1, step = 0.05, unit = "%",
+			  desc = L["The splash of a bite is an effect."], disabled = NotSound },
+			{ type = "slider", key = "musicVolume", label = L["Music volume"], min = 0, max = 1, step = 0.05, unit = "%",
 			  disabled = NotSound },
-			{ type = "slider", key = "ambienceVolume", label = "Ambience volume", min = 0, max = 1, step = 0.05, unit = "%",
+			{ type = "slider", key = "ambienceVolume", label = L["Ambience volume"], min = 0, max = 1, step = 0.05, unit = "%",
 			  disabled = NotSound },
-			{ type = "toggle", key = "backgroundSound", label = "Sound when the game is in the background",
-			  desc = "Hear a bite while you are in another window.", disabled = NotSound },
+			{ type = "toggle", key = "backgroundSound", label = L["Sound when the game is in the background"],
+			  desc = L["Hear a bite while you are in another window."], disabled = NotSound },
 		} },
-		{ label = "While fishing", items = {
-			{ type = "toggle", key = "softInteract", label = "Soft interact",
-			  desc = "Lets the fishing key hook the bobber without clicking it. Set back when Fishing Mode ends." },
-			{ type = "toggle", key = "autoLoot", label = "Auto loot",
-			  desc = "Your catch goes straight into your bags. Set back when Fishing Mode ends." },
+		{ label = L["While fishing"], items = {
+			{ type = "toggle", key = "softInteract", label = L["Soft interact"],
+			  desc = L["Lets the fishing key hook the bobber without clicking it. Set back when Fishing Mode ends."] },
+			{ type = "toggle", key = "autoLoot", label = L["Auto loot"],
+			  desc = L["Your catch goes straight into your bags. Set back when Fishing Mode ends."] },
 		} },
 	  } },
 }
@@ -1899,14 +1975,14 @@ local pages = {
 pcall(function()
 	DUI:RegisterPlugin(ADDON, {
 		needs = { 1, 1 },
-		short = "Fishing",
+		short = L["Fishing"],
 		color = { 0.4, 0.8, 1 },
-		blurb = "Fishing Mode: your pole, your bait and one key to fish.",
+		blurb = L["Fishing Mode: your pole, your bait and one key to fish."],
 	})
-	DUI:RegisterModule(ADDON, { plugin = ADDON, label = "Fishing", defaults = DEFAULTS, options = { pages = pages } })
+	DUI:RegisterModule(ADDON, { plugin = ADDON, label = L["Fishing"], defaults = DEFAULTS, options = { pages = pages } })
 end)
 
-me.RegisterCommand("fish", function() Fishing.Toggle() end, "Turn Fishing Mode on or off.")
+me.RegisterCommand("fish", function() Fishing.Toggle() end, L["Turn Fishing Mode on or off."])
 
 me.On("SettingChanged", function(scope, path)
 	if scope ~= ADDON or not active then return end
