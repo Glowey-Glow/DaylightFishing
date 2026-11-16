@@ -15,7 +15,7 @@ Requires **DaylightUI**.
 ## While it's on
 - **Your best fishing pole** goes on, and the sound is set up for fishing (effects up, music and ambience down).
 - **A fishing menu** under your character: your bait (click to put it on), the bait timer and the cast button.
-- **One key** casts, and hooks the fish once the bobber is out: Space to start, or any key or mouse button you like (**Set Fishing Key**).
+- **One key** casts, and hooks the fish once the bobber is out: Space by default, or any key or mouse button you like (**Set Fishing Key**).
 - **The rest of the UI fades away** while you stand and fish, keeping the menu, minimap, chat and bags.
 - **A catch counter** for the session (hover it for the totals, click it for the list).
 - **Fishing skill:** the bar at the top of the menu shows your skill against your rank's cap. Click it to see where to learn your next rank, and click a place for a waypoint.

@@ -2114,7 +2114,7 @@ end)
 -- ---------------------------------------------------------------------------------------------
 
 -- The fishing key: set in a small box that takes the next key or mouse button pressed (out of a
--- fight), the way Daylight Essentials' Halo sets its key. Space to start; Clear leaves no key (the
+-- fight), the way Daylight Essentials' Halo sets its key. Space by default; Clear leaves no key (the
 -- cast button is clicked instead). Shift, Alt and Ctrl alone can't be it, and neither can Escape
 -- (it closes the box) or the left and right mouse buttons (they're for the box itself).
 -- (All of it inside one function: Core.lua is near Lua's limit of 200 locals in a file's main
@@ -2261,7 +2261,7 @@ local pages = {
 			{ type = "toggle", key = "autoMode", label = L["Turn on when I equip a pole"],
 			  desc = L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] },
 			{ type = "button", label = L["Set Fishing Key"], func = function() Fishing.SetKey() end,
-			  desc = L["Opens a small box: press any key you want (a mouse's middle or side button works too). Space to start. While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] },
+			  desc = L["Opens a small box: press any key you want (a mouse's middle or side button works too). Space by default. While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] },
 			{ type = "button", label = L["Clear this session's catch"], func = function() Fishing.ResetCatch() end },
 			{ type = "toggle", key = "equipPole", label = L["Put my fishing pole on"],
 			  desc = L["Fishing Mode puts on the best fishing pole in your bags."] },

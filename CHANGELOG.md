@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.9
+- Translations: today's new text (Set Fishing Key, the fight message, the Mastercraft question and more) in German, French, Spanish, Russian, Korean and Simplified Chinese.
+
 ## 1.6.8
 - Its own icon: in the game's AddOns list and other menus (instead of the blank "?"), and on its page in DaylightUI's options. The Fishing Mode data text shows it too.
 
