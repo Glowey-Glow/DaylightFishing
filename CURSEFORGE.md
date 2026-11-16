@@ -20,7 +20,7 @@ Requires **DaylightUI**.
 - **A catch counter** for the session (hover it for the totals, click it for the list).
 - **Fishing skill:** the bar at the top of the menu shows your skill against your rank's cap. Click it to see where to learn your next rank, and click a place for a waypoint.
 
-**Pulled into a fight?** Fishing Mode ends ("Combat Detected, Exiting Fishing Mode") and stays off. Your main hand goes back on at once, your off hand as the fight ends, and your weapons always come back however Fishing Mode ends. With Mastercraft installed, Daylight Fishing handles fights by default (asked once).
+**Pulled into a fight?** Fishing Mode ends ("Combat Detected, Exiting Fishing Mode") and stays off. Your main hand and off hand (a one-hand and shield too) go back on at once, and your weapons always come back however Fishing Mode ends. With Mastercraft installed, Daylight Fishing handles fights by default (asked once).
 
 Everything goes back as it was when Fishing Mode ends.
 

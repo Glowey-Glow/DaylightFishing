@@ -794,39 +794,78 @@ local function SaveWeapons()
 	char.weapons = HandsNow()
 end
 
--- The owed weapons back in their own slots. The game blocks an addon equipping in a fight
--- (ADDON_ACTION_BLOCKED: /equip is one of its secure commands), so in one they wait for its end.
--- PLAYER_REGEN_DISABLED comes just before that lock, so a fight's first moment still takes the
--- main hand. The off hand waits for the main hand to replace the two-handed pole, and goes on only
--- with no pole in hand: on top of one it would take the pole off and leave the main hand empty.
+-- The owed weapons back in their own slots, both at once, the way a macro of two lines does it
+-- ("/equip <main hand>" then "/equip <off hand>"): main hand first, then the off hand, in the same
+-- moment. The game takes them in that order, so the off hand never waits for the two-handed pole to
+-- leave. A fight ends Fishing Mode from PLAYER_REGEN_DISABLED, which comes just before the game
+-- locks an addon's equipping for the fight (ADDON_ACTION_BLOCKED on EquipItemByName, /equip's own
+-- call): both go on right there. Already in the lock (the pole taken off by hand mid-fight), each
+-- weapon goes through the cursor instead (picked up from its bag slot, dropped on its hand's
+-- slot), and whatever didn't make it goes on as the fight ends.
 local weaponsQueued = false
-local RestoreWeapons, RestoreOffHand
+local RestoreWeapons
 
-function RestoreOffHand()
-	local w = char and char.weapons
-	if active or type(w) ~= "table" or not w[2] then return end
-	if InCombatLockdown() then
-		if not weaponsQueued then
-			weaponsQueued = true
-			later[#later + 1] = RestoreWeapons
+-- `link` from your bags onto inventory `slot` through the cursor. True once the swap is sent (or
+-- there was nothing to do: the item isn't in your bags).
+local function SwapIn(link, slot)
+	if not link or InSlot(slot, link) then return true end
+	if GetCursorInfo() then return false end
+	local id = C_Item.GetItemInfoInstant(link)
+	local bagAt, slotAt
+	for bag = 0, NUM_BAG_SLOTS or 4 do
+		for i = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+			local here = C_Container.GetContainerItemLink(bag, i)
+			if here == link then
+				bagAt, slotAt = bag, i
+				break
+			elseif not bagAt and here and C_Container.GetContainerItemID(bag, i) == id then
+				bagAt, slotAt = bag, i
+			end
 		end
-		return
+		if bagAt and C_Container.GetContainerItemLink(bagAt, slotAt) == link then break end
 	end
-	if IsPole(GetInventoryItemID("player", 16)) or InSlot(17, w[2]) then return end
-	if (ItemCount(w[2]) or 0) > 0 then Equip(w[2], 17) end
+	if not bagAt then return true end
+	local info = C_Container.GetContainerItemInfo(bagAt, slotAt)
+	if info and info.isLocked then return false end
+	C_Container.PickupContainerItem(bagAt, slotAt)
+	PickupInventoryItem(slot)
+	-- (Anything left on the cursor, the swap didn't take: back where it came from.)
+	if GetCursorInfo() then ClearCursor() end
+	return true
+end
+
+-- One weapon onto its slot: /equip's way out of the lock, the cursor's in it.
+local function PutOn(link, slot)
+	if not link or InSlot(slot, link) or (ItemCount(link) or 0) < 1 then return true end
+	if not InCombatLockdown() then
+		Equip(link, slot)
+		return true
+	end
+	return SwapIn(link, slot)
 end
 
 function RestoreWeapons()
 	weaponsQueued = false
 	local w = char and char.weapons
 	if active or type(w) ~= "table" then return end
-	if InCombatLockdown() then
-		weaponsQueued = true
-		later[#later + 1] = RestoreWeapons
-		return
+	local main, off = PutOn(w[1], 16), PutOn(w[2], 17)
+	-- (Still owed after the swaps have landed: once more as the fight ends.)
+	if InCombatLockdown() or not (main and off) then
+		C_Timer.After(1, function()
+			local o = char and char.weapons
+			if active or type(o) ~= "table" then return end
+			if (o[1] and not InSlot(16, o[1])) or (o[2] and not InSlot(17, o[2])) then
+				if InCombatLockdown() then
+					if not weaponsQueued then
+						weaponsQueued = true
+						later[#later + 1] = RestoreWeapons
+					end
+				else
+					RestoreWeapons()
+				end
+			end
+		end)
 	end
-	if w[1] and not InSlot(16, w[1]) and (ItemCount(w[1]) or 0) > 0 then Equip(w[1], 16) end
-	if w[2] then C_Timer.After(0.4, RestoreOffHand) end
 	SettleWeapons()
 end
 
@@ -959,7 +998,7 @@ local function Enter(resuming)
 end
 
 -- reason: "toggle" (the button), "combat" (a fight started: Fishing Mode ends and stays off, the
--- main hand goes on at once and the off hand as the fight ends) or "unequipped" (you took the pole
+-- weapons go back on at once, the off hand right after the main hand) or "unequipped" (you took the pole
 -- off: your weapons go back on if your main hand is empty or holds your own main hand again, else
 -- what you put on stays). With "Put my weapons back on" off, the weapons stay as they are.
 local function Leave(reason)

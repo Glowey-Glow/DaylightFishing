@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.11
+- Fix: when a fight ends Fishing Mode, your one-hand weapon and your shield (or other off hand) both go back on at once. Before, only the main hand went on and the off hand waited for the fight to end. They now go on the way a two-line /equip macro does it: main hand, then off hand, in the same moment, just before the fight locks gear changes. Turning Fishing Mode off yourself works the same way.
+
 ## 1.6.10
 - Translations tidied: lines for text the plugin no longer shows are taken out of all six languages.
 
