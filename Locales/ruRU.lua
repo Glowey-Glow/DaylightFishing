@@ -93,13 +93,7 @@ L["Click: turn Fishing Mode on"] = "Щелчок: включить режим р
 L["Shift-right-click: clear this session's catch"] = "Shift+правый щелчок: очистить улов сеанса"
 
 -- The fishing key's choices
-L["No key (click the cast button)"] = "Нет (щелчок по кнопке)"
 L["Space"] = "Пробел"
-L["Middle mouse button"] = "Средняя кнопка мыши"
-L["Mouse button 4"] = "Кнопка мыши 4"
-L["Mouse button 5"] = "Кнопка мыши 5"
-L["Backspace"] = "Backspace"
-L["` (backquote)"] = "` (апостроф)"
 
 -- The options page
 L["Fishing"] = "Рыбалка"
@@ -112,7 +106,6 @@ L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and
 L["Turn on when I equip a pole"] = "Включать, когда беру удочку"
 L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] = "Взятая удочка включает режим рыбалки, снятая выключает."
 L["Fishing key"] = "Клавиша рыбалки"
-L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] = "В режиме рыбалки эта клавиша делает заброс и подсекает рыбу, когда поплавок в воде. Она снова ваша, когда режим заканчивается или начинается бой."
 L["Clear this session's catch"] = "Очистить улов сеанса"
 L["Put my fishing pole on"] = "Брать удочку"
 L["Fishing Mode puts on the best fishing pole in your bags."] = "Режим рыбалки берет лучшую удочку из ваших сумок."

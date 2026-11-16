@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.10
+- Translations tidied: lines for text the plugin no longer shows are taken out of all six languages.
+
 ## 1.6.9
 - Translations: today's new text (Set Fishing Key, the fight message, the Mastercraft question and more) in German, French, Spanish, Russian, Korean and Simplified Chinese.
 

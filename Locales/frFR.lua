@@ -90,13 +90,7 @@ L["Click: turn Fishing Mode on"] = "Clic : activer le mode pêche"
 L["Shift-right-click: clear this session's catch"] = "Maj-clic droit : effacer les prises de la session"
 
 -- The fishing key's choices
-L["No key (click the cast button)"] = "Aucune (clic sur le bouton)"
 L["Space"] = "Espace"
-L["Middle mouse button"] = "Bouton central"
-L["Mouse button 4"] = "Bouton souris 4"
-L["Mouse button 5"] = "Bouton souris 5"
-L["Backspace"] = "Retour arrière"
-L["` (backquote)"] = "` (accent grave)"
 
 -- The options page
 L["Fishing"] = "Pêche"
@@ -109,7 +103,6 @@ L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and
 L["Turn on when I equip a pole"] = "Activer en équipant une canne"
 L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] = "Équiper une canne à pêche active le mode pêche, la retirer le désactive."
 L["Fishing key"] = "Touche de pêche"
-L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] = "En mode pêche, cette touche lance la ligne et ferre le poisson une fois le flotteur à l'eau. Elle vous est rendue à la fin du mode pêche ou au début d'un combat."
 L["Clear this session's catch"] = "Effacer les prises de la session"
 L["Put my fishing pole on"] = "Équiper ma canne à pêche"
 L["Fishing Mode puts on the best fishing pole in your bags."] = "Le mode pêche équipe la meilleure canne à pêche de vos sacs."

@@ -90,13 +90,7 @@ L["Click: turn Fishing Mode on"] = "Klick: Angelmodus einschalten"
 L["Shift-right-click: clear this session's catch"] = "Umschalt-Rechtsklick: Fang dieser Sitzung löschen"
 
 -- The fishing key's choices
-L["No key (click the cast button)"] = "Keine (Knopf klicken)"
 L["Space"] = "Leertaste"
-L["Middle mouse button"] = "Mittlere Maustaste"
-L["Mouse button 4"] = "Maustaste 4"
-L["Mouse button 5"] = "Maustaste 5"
-L["Backspace"] = "Rücktaste"
-L["` (backquote)"] = "` (Gravis)"
 
 -- The options page
 L["Fishing"] = "Angeln"
@@ -109,7 +103,6 @@ L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and
 L["Turn on when I equip a pole"] = "Mit angelegter Rute einschalten"
 L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] = "Eine angelegte Angelrute schaltet den Angelmodus ein, das Ablegen schaltet ihn aus."
 L["Fishing key"] = "Angeltaste"
-L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] = "Im Angelmodus wirft diese Taste aus und holt den Fisch ein, sobald der Schwimmer draußen ist. Sie gehört wieder Euch, wenn der Angelmodus endet oder ein Kampf beginnt."
 L["Clear this session's catch"] = "Fang dieser Sitzung löschen"
 L["Put my fishing pole on"] = "Meine Angelrute anlegen"
 L["Fishing Mode puts on the best fishing pole in your bags."] = "Der Angelmodus legt die beste Angelrute aus Euren Taschen an."

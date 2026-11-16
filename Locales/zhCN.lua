@@ -90,13 +90,7 @@ L["Click: turn Fishing Mode on"] = "点击：开启钓鱼模式"
 L["Shift-right-click: clear this session's catch"] = "Shift-右键：清除本次渔获"
 
 -- The fishing key's choices
-L["No key (click the cast button)"] = "无（点击按钮）"
 L["Space"] = "空格键"
-L["Middle mouse button"] = "鼠标中键"
-L["Mouse button 4"] = "鼠标按键4"
-L["Mouse button 5"] = "鼠标按键5"
-L["Backspace"] = "退格键"
-L["` (backquote)"] = "`（反引号）"
 
 -- The options page
 L["Fishing"] = "钓鱼"
@@ -109,7 +103,6 @@ L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and
 L["Turn on when I equip a pole"] = "装备鱼竿时开启"
 L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] = "装备鱼竿时开启钓鱼模式，取下时关闭。"
 L["Fishing key"] = "钓鱼按键"
-L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] = "钓鱼模式下，此键用于抛竿，鱼漂入水后用于收鱼。钓鱼模式结束或进入战斗时恢复原用途。"
 L["Clear this session's catch"] = "清除本次渔获"
 L["Put my fishing pole on"] = "装备鱼竿"
 L["Fishing Mode puts on the best fishing pole in your bags."] = "钓鱼模式会装备背包中最好的鱼竿。"

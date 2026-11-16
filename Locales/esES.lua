@@ -90,13 +90,7 @@ L["Click: turn Fishing Mode on"] = "Clic: activar el modo pesca"
 L["Shift-right-click: clear this session's catch"] = "Mayús-clic derecho: borrar las capturas de la sesión"
 
 -- The fishing key's choices
-L["No key (click the cast button)"] = "Ninguna (clic en el botón)"
 L["Space"] = "Espacio"
-L["Middle mouse button"] = "Botón central"
-L["Mouse button 4"] = "Botón del ratón 4"
-L["Mouse button 5"] = "Botón del ratón 5"
-L["Backspace"] = "Retroceso"
-L["` (backquote)"] = "` (acento grave)"
 
 -- The options page
 L["Fishing"] = "Pesca"
@@ -109,7 +103,6 @@ L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and
 L["Turn on when I equip a pole"] = "Activar al equipar una caña"
 L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] = "Equipar una caña de pescar activa el modo pesca y quitártela lo desactiva."
 L["Fishing key"] = "Tecla de pesca"
-L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] = "En modo pesca, esta tecla lanza el sedal y recoge el pez cuando el corcho está en el agua. Vuelve a ser tuya al terminar el modo pesca o al empezar un combate."
 L["Clear this session's catch"] = "Borrar las capturas de la sesión"
 L["Put my fishing pole on"] = "Equipar mi caña de pescar"
 L["Fishing Mode puts on the best fishing pole in your bags."] = "El modo pesca equipa la mejor caña de pescar de tus bolsas."

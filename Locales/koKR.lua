@@ -90,13 +90,7 @@ L["Click: turn Fishing Mode on"] = "클릭: 낚시 모드 켜기"
 L["Shift-right-click: clear this session's catch"] = "Shift-우클릭: 이번 세션 획득 지우기"
 
 -- The fishing key's choices
-L["No key (click the cast button)"] = "없음 (버튼 클릭)"
 L["Space"] = "스페이스"
-L["Middle mouse button"] = "마우스 가운데 버튼"
-L["Mouse button 4"] = "마우스 버튼 4"
-L["Mouse button 5"] = "마우스 버튼 5"
-L["Backspace"] = "백스페이스"
-L["` (backquote)"] = "` (백쿼트)"
 
 -- The options page
 L["Fishing"] = "낚시"
@@ -109,7 +103,6 @@ L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and
 L["Turn on when I equip a pole"] = "낚싯대 착용 시 켜기"
 L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] = "낚싯대를 착용하면 낚시 모드가 켜지고, 벗으면 꺼집니다."
 L["Fishing key"] = "낚시 키"
-L["While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] = "낚시 모드 동안 이 키로 낚싯줄을 던지고, 찌가 뜨면 물고기를 낚아챕니다. 낚시 모드가 끝나거나 전투가 시작되면 원래대로 돌아갑니다."
 L["Clear this session's catch"] = "이번 세션 획득 지우기"
 L["Put my fishing pole on"] = "낚싯대 착용"
 L["Fishing Mode puts on the best fishing pole in your bags."] = "낚시 모드가 가방에서 가장 좋은 낚싯대를 착용합니다."
