@@ -20,4 +20,7 @@ Locales\esES.lua
 Locales\ruRU.lua
 Locales\koKR.lua
 Locales\zhCN.lua
+Update.lua
+Guide.lua
+FishingGuide.lua
 Core.lua

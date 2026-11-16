@@ -685,6 +685,11 @@ end
 
 local function WantFade()
 	if not active or not Get("fadeUI") or InCombatLockdown() then return false end
+	-- (Not while a tour explains the screen: Guide.lua.)
+	if ns.Guide and ns.Guide.Running() then
+		stillSince = nil
+		return false
+	end
 	if (GetUnitSpeed("player") or 0) > 0 or IsFalling()
 		or (Get("keepChat") == false and ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()) then
 		stillSince = nil
@@ -995,6 +1000,8 @@ local function Enter(resuming)
 	ShowMenu(true)
 	fader:Show()
 	UpdateBroker()
+	-- (The first time, on this account: the tour of the menu that just showed. Guide.lua)
+	if ns.Guide then ns.Guide.Offer("fishing") end
 end
 
 -- reason: "toggle" (the button), "combat" (a fight started: Fishing Mode ends and stays off, the
@@ -1036,6 +1043,33 @@ end
 
 function Fishing.IsActive()
 	return active
+end
+
+-- The tour shows the fishing menu while it runs, Fishing Mode on or not (FishingGuide.lua): built and
+-- filled as Fishing Mode shows it, but nothing else of Fishing Mode (no pole, sound or fade). Taken
+-- away when the tour ends, unless Fishing Mode came on meanwhile. Out of a fight only (the menu
+-- holds secure buttons).
+function Fishing.TourPreview(on)
+	if InCombatLockdown() then return end
+	BuildMenu()
+	if on then
+		if not menu:IsShown() then
+			UpdateMenu()
+			menu:Show()
+			menu.tourPreview = true
+		end
+	elseif menu.tourPreview then
+		menu.tourPreview = nil
+		if not (active and Get("showMenu")) then menu:Hide() end
+	end
+end
+
+-- What the tour lights (FishingGuide.lua): the menu, its baits shown, the cast button, the fishing
+-- key's name (nil: none).
+function Fishing.TourParts()
+	local shown = {}
+	for _, b in ipairs(baitButtons) do if b:IsShown() then shown[#shown + 1] = b end end
+	return menu, shown, cast, KeyText()
 end
 
 -- A "Fishing Mode" macro (/dui fish) with the Fishing icon, made or brought up to date, and put on
@@ -1990,6 +2024,11 @@ end
 
 local function AskMastercraft()
 	if not MastercraftSettings() or db.mastercraftAsked then return end
+	-- (A first launch: the welcome says it instead, and Revert in the options gives it back.)
+	if ns.Guide and not (type(db.guide) == "table" and db.guide.welcomed) then
+		db.mastercraftAsked = true
+		return
+	end
 	db.mastercraftAsked = true
 	StaticPopupDialogs.DAYLIGHTFISHING_MASTERCRAFT = {
 		text = L["Mastercraft puts your fishing pole back on after every fight, and Daylight Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nDaylight Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights while fishing."],
@@ -2364,6 +2403,11 @@ local pages = {
 		} },
 	  } },
 }
+
+-- The "Tell me when a newer version is out" switch (Update.lua), on the first page.
+if ns.UpdateGroup and pages[1] then table.insert(pages[1].groups, ns.UpdateGroup()) end
+-- Help: Retake Tour, What's new, Revert to Mastercraft (Guide.lua, FishingGuide.lua).
+if ns.Guide and ns.Guide.HelpGroup and pages[1] then table.insert(pages[1].groups, ns.Guide.HelpGroup()) end
 
 pcall(function()
 	DUI:RegisterPlugin(ADDON, {

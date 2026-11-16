@@ -26,6 +26,17 @@ Everything goes back as it was when Fishing Mode ends.
 
 ---
 
+## New in 1.6.12
+- **A welcome** on first launch that says what Fishing Mode takes over while it's on. **Start Tour** shows you around: the menu, baits, your fishing key (try a cast), skill and catch, fights and settings.
+- **What's new:** a short note after each update.
+- **Help** in the settings: **Retake Tour**, **What's new**, and **Revert to Mastercraft** when Mastercraft is installed.
+- **Update alert:** a chat line when a newer version is out (once a session; switch it off under Updates).
+
+## New in 1.6.11
+- **One-hand and shield** both go back on together when a fight ends Fishing Mode, right as it starts.
+
+---
+
 ## In your language
 Daylight Fishing speaks German, French, Spanish, Russian, Korean and Simplified Chinese (machine drafts, corrections welcome; words the game already translates use the game's own wording), and finds trainers, places and keys on every game client.
 

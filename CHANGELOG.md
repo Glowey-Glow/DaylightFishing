@@ -1,5 +1,13 @@
 # Daylight Fishing
 
+## 1.6.12
+- Everyone, including players who had Daylight Fishing before, sees the welcome and the tour once with this version. A Mastercraft fight setting you already picked stays as it is.
+- New: a welcome on first launch that lists what Daylight Fishing takes over while Fishing Mode is on (your weapons, sound, one key, fights, and Mastercraft's fight setting when it's installed). Start Tour begins a short tour.
+- New: a tour of Fishing Mode, the first time it turns on: the menu, baits, the fishing key (try a cast and it moves on), skill and catch, fights and settings. Back, Next and Skip tour; Escape skips; a fight ends it.
+- New: after an update, a short note with what changed.
+- New Help card in the options: Retake Tour, What's new, and (with Mastercraft installed) Revert to Mastercraft, which gives Mastercraft its "After the fight: your fishing gear back on" setting back.
+- New: tells you when a newer version is out. Your copy and those of players in your guild and group trade version numbers in the background, and one chat line says when there is a newer one to get through CurseForge or WowUp (once a session). Turn it off with "Tell me when a newer version is out" on the plugin's first options page; then nothing is sent either.
+
 ## 1.6.11
 - Fix: when a fight ends Fishing Mode, your one-hand weapon and your shield (or other off hand) both go back on at once. Before, only the main hand went on and the off hand waited for the fight to end. They now go on the way a two-line /equip macro does it: main hand, then off hand, in the same moment, just before the fight locks gear changes. Turning Fishing Mode off yourself works the same way.
 
