@@ -2020,6 +2020,17 @@ local function ApplyMastercraft()
 		ms.fishAfterFight = db.mastercraftWas
 		db.mastercraftWas = nil
 	end
+	-- Its "Hide the game's interface" (fishHideUI) and our "Fade the UI while fishing" both set the
+	-- UI's opacity and put back what they found, so with both on the UI can stay faded. While our
+	-- fade is on (and we handle the overlaps), its hiding is held at "never", what it was recorded;
+	-- turning our fade off, or Revert to Mastercraft, gives it back.
+	if Get("fadeUI") ~= false and Get("mastercraftFights") ~= false then
+		if db.mastercraftHideWas == nil then db.mastercraftHideWas = ms.fishHideUI or "never" end
+		ms.fishHideUI = "never"
+	elseif db.mastercraftHideWas ~= nil then
+		ms.fishHideUI = db.mastercraftHideWas
+		db.mastercraftHideWas = nil
+	end
 end
 
 local function AskMastercraft()
@@ -2044,7 +2055,7 @@ local function AskMastercraft()
 end
 
 me.On("SettingChanged", function(scope, path)
-	if scope == ADDON and path == "mastercraftFights" then ApplyMastercraft() end
+	if scope == ADDON and (path == "mastercraftFights" or path == "fadeUI") then ApplyMastercraft() end
 end)
 
 local function Login()
@@ -2365,7 +2376,8 @@ local pages = {
 		} },
 		{ label = L["Quiet screen"], items = {
 			{ type = "toggle", key = "fadeUI", label = L["Fade the UI while fishing"],
-			  desc = L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."] },
+			  desc = L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."]
+				.. " " .. L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] },
 			{ type = "slider", key = "fadeAlpha", label = L["Faded UI opacity"], min = 0, max = 0.6, step = 0.05, unit = "%",
 			  desc = L["How much of the UI still shows while faded. 0 hides it."],
 			  disabled = function(get) return get("fadeUI") == false end },

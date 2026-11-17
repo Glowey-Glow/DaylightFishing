@@ -221,3 +221,8 @@ L["What's new in %s"] = "Novedades de %s"
 L["Your key, the sound and a Fishing Mode macro are in DaylightUI's options: %s. %s there shows this tour again."] = "Tu tecla, el sonido y una macro de modo pesca están en las opciones de DaylightUI: %s. %s, allí, vuelve a mostrar este recorrido."
 L["Your weapons, while Fishing Mode is on: your best fishing pole goes on, and your weapons come back when it ends."] = "Tus armas, en modo pesca: se equipa tu mejor caña de pescar, y tus armas vuelven al terminar."
 L["While Fishing Mode is on, %s casts. When the bobber splashes, press it again to hook the fish."] = "Con el modo pesca activo, %s lanza el sedal. Cuando el corcho salpique, púlsala otra vez para enganchar el pez."
+
+-- Mastercraft's interface hiding (1.6.13)
+L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] = "Con Mastercraft cargado, su «Hide the game's interface» se queda en Never mientras esto esté activado; al desactivarlo, vuelve a como estaba."
+L["So does its \"Hide the game's interface\"."] = "Igual que su «Hide the game's interface»."
+L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."] = "Con Mastercraft instalado, su «Hide the game's interface» se queda en Never mientras atenuar la interfaz esté activado, para que la interfaz no se quede atenuada."

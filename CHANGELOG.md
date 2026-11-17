@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.13
+- With Mastercraft installed, its "Hide the game's interface" stays on Never while "Fade the UI while fishing" is on. Both set the UI's opacity, so with both on the UI could stay faded after fishing. Turning our fade off, or Revert to Mastercraft, gives its setting back as it was.
+
 ## 1.6.12
 - Everyone, including players who had Daylight Fishing before, sees the welcome and the tour once with this version. A Mastercraft fight setting you already picked stays as it is.
 - New: a welcome on first launch that lists what Daylight Fishing takes over while Fishing Mode is on (your weapons, sound, one key, fights, and Mastercraft's fight setting when it's installed). Start Tour begins a short tour.

@@ -221,3 +221,8 @@ L["What's new in %s"] = "%s更新内容"
 L["Your key, the sound and a Fishing Mode macro are in DaylightUI's options: %s. %s there shows this tour again."] = "按键、声音和钓鱼模式宏都在DaylightUI的选项中：%s。那里的%s可再次显示本导览。"
 L["Your weapons, while Fishing Mode is on: your best fishing pole goes on, and your weapons come back when it ends."] = "钓鱼模式期间的武器：装上你最好的鱼竿，结束时换回武器。"
 L["While Fishing Mode is on, %s casts. When the bobber splashes, press it again to hook the fish."] = "钓鱼模式开启时，%s用来抛竿。鱼漂溅起水花时再按一次即可收竿。"
+
+-- Mastercraft's interface hiding (1.6.13)
+L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] = "加载了 Mastercraft 时，开启此项期间它的“Hide the game's interface”保持为 Never；关闭此项后恢复原样。"
+L["So does its \"Hide the game's interface\"."] = "它的“Hide the game's interface”也一样。"
+L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."] = "安装了 Mastercraft 时，开启淡化界面期间它的“Hide the game's interface”保持为 Never，界面不会一直处于淡化状态。"

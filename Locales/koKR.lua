@@ -221,3 +221,8 @@ L["What's new in %s"] = "%s 새 소식"
 L["Your key, the sound and a Fishing Mode macro are in DaylightUI's options: %s. %s there shows this tour again."] = "키, 소리, 낚시 모드 매크로는 DaylightUI 옵션에 있습니다: %s. 그곳의 %s 버튼으로 이 둘러보기를 다시 볼 수 있습니다."
 L["Your weapons, while Fishing Mode is on: your best fishing pole goes on, and your weapons come back when it ends."] = "낚시 모드 동안 무기: 가장 좋은 낚싯대를 들고, 끝나면 무기가 돌아옵니다."
 L["While Fishing Mode is on, %s casts. When the bobber splashes, press it again to hook the fish."] = "낚시 모드가 켜져 있으면 %s 키로 낚싯줄을 던집니다. 찌가 첨벙거리면 다시 눌러 물고기를 낚아채세요."
+
+-- Mastercraft's interface hiding (1.6.13)
+L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] = "Mastercraft가 켜져 있으면, 이 설정이 켜져 있는 동안 Mastercraft의 \"Hide the game's interface\"는 Never로 유지됩니다. 이 설정을 끄면 원래대로 돌아갑니다."
+L["So does its \"Hide the game's interface\"."] = "Mastercraft의 \"Hide the game's interface\"도 마찬가지입니다."
+L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."] = "Mastercraft가 설치되어 있으면, UI 흐리게 하기가 켜져 있는 동안 Mastercraft의 \"Hide the game's interface\"가 Never로 유지되어 UI가 흐린 채로 남지 않습니다."

@@ -22,6 +22,9 @@ end
 
 -- What changed, newest first: shown once after an update ("What's new" in the options shows them again).
 local NEWS = {
+	{ version = "1.6.13", lines = {
+		L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."],
+	} },
 	{ version = "1.6.12", lines = {
 		L["A short tour of Fishing Mode, the first time it turns on. Retake Tour in the options shows it again."],
 		L["A note like this one after each update, with what changed."],
@@ -66,7 +69,8 @@ Guide.Setup({
 	revert = {
 		label = L["Fights while fishing"],
 		text = L["Revert to Mastercraft"],
-		desc = L["Mastercraft handles fights again: its \"After the fight: your fishing gear back on\" comes back as it was."],
+		desc = L["Mastercraft handles fights again: its \"After the fight: your fishing gear back on\" comes back as it was."]
+			.. " " .. L["So does its \"Hide the game's interface\"."],
 		available = MastercraftLoaded,
 		fn = function() pcall(DUI.Set, DUI, ADDON, "mastercraftFights", false) end,
 	},
