@@ -119,7 +119,7 @@ L["Window opacity"] = "창 불투명도"
 L["How solid their backgrounds are, with DaylightUI's opacity off."] = "DaylightUI 불투명도가 꺼졌을 때 배경의 불투명도입니다."
 L["Quiet screen"] = "조용한 화면"
 L["Fade the UI while fishing"] = "낚시 중 UI 흐리게"
-L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."] = "DaylightUI의 부드러운 자리 비움 화면처럼: 서서 낚시하는 동안 나머지 UI가 흐려지고 낚시 메뉴만 남습니다. 움직이거나, 대화하거나, 직접 전리품을 줍거나, 싸우거나, 낚시 모드가 끝나면 돌아옵니다."
+L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."] = "DaylightUI의 부드러운 자리 비움 화면처럼: 서서 낚시하는 동안 나머지 UI가 흐려지고 낚시 메뉴만 남습니다. 대화하거나, 직접 전리품을 줍거나, 싸우거나, 낚시 모드가 끝나면 돌아옵니다."
 L["Faded UI opacity"] = "흐린 UI 불투명도"
 L["How much of the UI still shows while faded. 0 hides it."] = "흐려진 동안 UI가 보이는 정도. 0이면 숨깁니다."
 L["Fade after standing still"] = "정지 후 흐리게"
@@ -231,3 +231,14 @@ L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never 
 L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."] = "낚시 모드에서 던지고 낚아챌 키를 고르세요. 설정의 낚시 키 설정에서 언제든지 바꿀 수 있습니다."
 L["Forever Fishing uses %s: pick a different key so the two don't fight over it."] = "Forever Fishing이 %s 키를 사용합니다: 서로 충돌하지 않도록 다른 키를 고르세요."
 L["On the first start you pick your fishing key, before the welcome."] = "처음 시작할 때 환영 인사 전에 낚시 키를 고릅니다."
+
+-- Weapon Swap on the menu
+L["Weapon Swap"] = "무기 교체"
+L["Goes back on when Fishing Mode ends."] = "낚시 모드가 끝나면 다시 장착됩니다."
+L["Stay faded while moving"] = "이동 중에도 흐리게 유지"
+L["Walking about while you fish keeps the UI faded. Off: it comes back as you move."] = "낚시 중 돌아다녀도 UI가 흐린 상태로 유지됩니다. 끄면 움직일 때 다시 나타납니다."
+
+-- What's new
+L["Weapon Swap on the menu: the weapons that go back on when Fishing Mode ends."] = "메뉴의 무기 교체: 낚시 모드가 끝나면 다시 장착되는 무기입니다."
+L["Stay faded while moving (on to start): walking about keeps the UI faded."] = "이동 중에도 흐리게 유지(처음엔 켜짐): 돌아다녀도 UI가 흐린 상태로 유지됩니다."
+L["While faded, Polestar's target faces, DaylightUI's portraits and the tooltips of windows out of sight stay hidden."] = "흐린 동안 Polestar 대상 버튼의 얼굴, DaylightUI 초상화, 보이지 않는 창의 툴팁이 숨겨집니다."

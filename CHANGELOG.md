@@ -1,5 +1,11 @@
 # Daylight Fishing
 
+## 1.7.0
+- New: Weapon Swap on the fishing menu, at its right: the weapon or weapons that go back on when Fishing Mode ends. Hover one for the item. It shows while "Put my weapons back on" is on.
+- New: "Stay faded while moving" (on to start). Once the UI has faded, walking about keeps it faded; a fight, the chat box (with Keep the chat off) or Fishing Mode ending still bring it back. Off, the UI comes back as you move, as before.
+- While the UI is faded, Polestar's target button faces no longer stay on the screen (3D models ignore the fade), and DaylightUI's 3D portraits fade with the rest (the fade now goes through DaylightUI's own).
+- While the UI is faded, passing the mouse over a window out of sight (Polestar's guide) no longer shows its tooltip. Tooltips of the bobber, mobs and your catch still show.
+
 ## 1.6.14
 - New: on the first start, Daylight Fishing asks for your fishing key before the welcome (the welcome and the tour wait until you've picked one). With Forever Fishing loaded, the box says which key Forever Fishing uses so you can pick a different one. Escape keeps Space. Players who already had Daylight Fishing aren't asked; Set Fishing Key in the options changes it any time.
 

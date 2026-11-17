@@ -119,7 +119,7 @@ L["Window opacity"] = "Opacité des fenêtres"
 L["How solid their backgrounds are, with DaylightUI's opacity off."] = "L'opacité de leurs fonds, sans l'opacité de DaylightUI."
 L["Quiet screen"] = "Écran calme"
 L["Fade the UI while fishing"] = "Estomper l'interface en pêchant"
-L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."] = "Comme l'écran ABS doux de DaylightUI : le reste de l'interface s'estompe pendant que vous pêchez immobile, seul le menu de pêche reste. Elle revient quand vous bougez, discutez, ramassez à la main ou combattez, et à la fin du mode pêche."
+L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."] = "Comme l'écran ABS doux de DaylightUI : le reste de l'interface s'estompe pendant que vous pêchez immobile, seul le menu de pêche reste. Elle revient quand vous discutez, ramassez à la main ou combattez, et à la fin du mode pêche."
 L["Faded UI opacity"] = "Opacité estompée"
 L["How much of the UI still shows while faded. 0 hides it."] = "Ce qui reste visible de l'interface estompée. 0 la masque."
 L["Fade after standing still"] = "Estomper après immobilité"
@@ -231,3 +231,14 @@ L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never 
 L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."] = "Choisissez la touche qui lance et ferre en mode pêche. Vous pouvez la changer à tout moment avec Définir la touche de pêche dans les options."
 L["Forever Fishing uses %s: pick a different key so the two don't fight over it."] = "Forever Fishing utilise %s : choisissez une autre touche pour qu'ils ne se la disputent pas."
 L["On the first start you pick your fishing key, before the welcome."] = "Au premier lancement, vous choisissez votre touche de pêche, avant l'accueil."
+
+-- Weapon Swap on the menu
+L["Weapon Swap"] = "Changement d'arme"
+L["Goes back on when Fishing Mode ends."] = "Se rééquipe à la fin du mode pêche."
+L["Stay faded while moving"] = "Rester estompé en bougeant"
+L["Walking about while you fish keeps the UI faded. Off: it comes back as you move."] = "Se déplacer en pêchant garde l'interface estompée. Désactivé : elle revient dès que vous bougez."
+
+-- What's new
+L["Weapon Swap on the menu: the weapons that go back on when Fishing Mode ends."] = "Changement d'arme dans le menu : les armes rééquipées à la fin du mode pêche."
+L["Stay faded while moving (on to start): walking about keeps the UI faded."] = "Rester estompé en bougeant (activé au départ) : marcher garde l'interface estompée."
+L["While faded, Polestar's target faces, DaylightUI's portraits and the tooltips of windows out of sight stay hidden."] = "Estompée, les visages du bouton de cible de Polestar, les portraits de DaylightUI et les infobulles des fenêtres invisibles restent cachés."

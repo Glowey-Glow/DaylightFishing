@@ -119,7 +119,7 @@ L["Window opacity"] = "窗口不透明度"
 L["How solid their backgrounds are, with DaylightUI's opacity off."] = "关闭 DaylightUI 透明度时背景的不透明程度。"
 L["Quiet screen"] = "安静画面"
 L["Fade the UI while fishing"] = "钓鱼时淡出界面"
-L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."] = "类似 DaylightUI 的柔和暂离画面：站着钓鱼时其余界面淡出，只留钓鱼菜单。移动、聊天、手动拾取、战斗或钓鱼模式结束时恢复。"
+L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."] = "类似 DaylightUI 的柔和暂离画面：站着钓鱼时其余界面淡出，只留钓鱼菜单。聊天、手动拾取、战斗或钓鱼模式结束时恢复。"
 L["Faded UI opacity"] = "淡出后不透明度"
 L["How much of the UI still shows while faded. 0 hides it."] = "淡出时界面的可见程度。0 为完全隐藏。"
 L["Fade after standing still"] = "静止后淡出"
@@ -231,3 +231,14 @@ L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never 
 L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."] = "选择钓鱼模式下用于抛竿和收竿的按键。随时可以在选项中用“设置钓鱼按键”更改。"
 L["Forever Fishing uses %s: pick a different key so the two don't fight over it."] = "Forever Fishing 使用 %s：请选择另一个按键，以免两者冲突。"
 L["On the first start you pick your fishing key, before the welcome."] = "首次启动时，会在欢迎界面之前先选择钓鱼按键。"
+
+-- Weapon Swap on the menu
+L["Weapon Swap"] = "武器切换"
+L["Goes back on when Fishing Mode ends."] = "钓鱼模式结束时重新装备。"
+L["Stay faded while moving"] = "移动时保持淡出"
+L["Walking about while you fish keeps the UI faded. Off: it comes back as you move."] = "钓鱼时走动，界面保持淡出。关闭：移动时界面恢复。"
+
+-- What's new
+L["Weapon Swap on the menu: the weapons that go back on when Fishing Mode ends."] = "菜单中的武器切换：钓鱼模式结束时重新装备的武器。"
+L["Stay faded while moving (on to start): walking about keeps the UI faded."] = "移动时保持淡出（默认开启）：走动时界面保持淡出。"
+L["While faded, Polestar's target faces, DaylightUI's portraits and the tooltips of windows out of sight stay hidden."] = "淡出时，Polestar 目标按钮的头像、DaylightUI 的头像和不可见窗口的鼠标提示都会隐藏。"

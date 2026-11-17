@@ -39,6 +39,7 @@ read_globals = {
 	"FACTION_NEUTRAL",
 	"GOLD_AMOUNT_SYMBOL",
 	"GameTooltip",
+	"WorldFrame",
 	"GetBindingText",
 	"GetCVar",
 	"GetFileIDFromPath",

@@ -122,7 +122,7 @@ L["Window opacity"] = "Непрозрачность окон"
 L["How solid their backgrounds are, with DaylightUI's opacity off."] = "Насколько плотен их фон, если прозрачность DaylightUI выключена."
 L["Quiet screen"] = "Тихий экран"
 L["Fade the UI while fishing"] = "Скрывать интерфейс на рыбалке"
-L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."] = "Как мягкий экран «Отошел» в DaylightUI: остальной интерфейс угасает, пока вы стоите и рыбачите, остается только меню рыбалки. Он возвращается, когда вы двигаетесь, пишете в чат, собираете добычу вручную или сражаетесь, и когда режим заканчивается."
+L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."] = "Как мягкий экран «Отошел» в DaylightUI: остальной интерфейс угасает, пока вы стоите и рыбачите, остается только меню рыбалки. Он возвращается, когда вы пишете в чат, собираете добычу вручную или сражаетесь, и когда режим заканчивается."
 L["Faded UI opacity"] = "Непрозрачность скрытого"
 L["How much of the UI still shows while faded. 0 hides it."] = "Сколько интерфейса видно при угасании. 0 скрывает его."
 L["Fade after standing still"] = "Угасать после простоя"
@@ -234,3 +234,14 @@ L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never 
 L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."] = "Выберите клавишу, которая забрасывает и подсекает в режиме рыбалки. Ее можно изменить в любой момент кнопкой «Назначить клавишу» в настройках."
 L["Forever Fishing uses %s: pick a different key so the two don't fight over it."] = "Forever Fishing использует %s: выберите другую клавишу, чтобы они не мешали друг другу."
 L["On the first start you pick your fishing key, before the welcome."] = "При первом запуске вы выбираете клавишу рыбалки перед приветствием."
+
+-- Weapon Swap on the menu
+L["Weapon Swap"] = "Смена оружия"
+L["Goes back on when Fishing Mode ends."] = "Снова надевается, когда режим рыбалки заканчивается."
+L["Stay faded while moving"] = "Не возвращать при движении"
+L["Walking about while you fish keeps the UI faded. Off: it comes back as you move."] = "При ходьбе во время рыбалки интерфейс остаётся скрытым. Выкл.: он возвращается, когда вы двигаетесь."
+
+-- What's new
+L["Weapon Swap on the menu: the weapons that go back on when Fishing Mode ends."] = "Смена оружия в меню: оружие, которое снова надевается после режима рыбалки."
+L["Stay faded while moving (on to start): walking about keeps the UI faded."] = "Не возвращать при движении (вкл. по умолчанию): при ходьбе интерфейс остаётся скрытым."
+L["While faded, Polestar's target faces, DaylightUI's portraits and the tooltips of windows out of sight stay hidden."] = "В скрытом режиме лица кнопки цели Polestar, портреты DaylightUI и подсказки невидимых окон не показываются."

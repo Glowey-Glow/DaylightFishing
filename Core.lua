@@ -42,6 +42,7 @@ local DEFAULTS = {
 	fadeUI = true,
 	fadeAlpha = 0,
 	fadeDelay = 2,
+	fadeMoving = true,
 	hideWater = true,
 	keepMinimap = true,
 	keepChat = true,
@@ -268,6 +269,7 @@ local equipping = false     -- the pole is on its way on
 local channeling = false    -- a line is out
 
 local menu, cast, baitButtons = nil, nil, {}
+local weaponButtons = {}   -- the menu's Weapon Swap: the weapons Fishing Mode puts back on
 local UpdateBroker, UpdateMenu, UpdateCatch, RefreshPanel, UpdateSkill
 
 local function UpdateBinding()
@@ -343,6 +345,19 @@ local function BaitButton(i)
 	b.count = API.Text(b.top, "tiny", "RIGHT")
 	b.count:SetPoint("BOTTOMRIGHT", -3, 3)
 	baitButtons[i] = b
+	return b
+end
+
+-- Weapon Swap: the weapons owed back (char.weapons), shown at the menu's right. Only to look at
+-- (hover for the item); they go back on by themselves when Fishing Mode ends.
+local function WeaponButton(i)
+	local b = weaponButtons[i]
+	if b then return b end
+	b = IconButton(nil, menu, SIZE, function(self)
+		if self.link then GameTooltip:SetHyperlink(self.link) end
+		GameTooltip:AddLine(L["Goes back on when Fishing Mode ends."], TextColor("TEXT"))
+	end)
+	weaponButtons[i] = b
 	return b
 end
 
@@ -434,6 +449,11 @@ local function BuildMenu()
 	menu.bar:SetHeight(3)
 	menu.bar:SetMinMaxValues(0, 1)
 	menu.bar:Hide()
+
+	menu.swap = API.Text(menu, "tiny", "CENTER")
+	menu.swap:SetText(L["Weapon Swap"])
+	menu.swap:SetTextColor(TextColor("LABEL"))
+	menu.swap:Hide()
 
 	menu.empty = API.Text(menu, "small", "LEFT")
 	menu.empty:SetText(L["No bait in your bags"])
@@ -532,9 +552,35 @@ function UpdateMenu()
 	cast:SetAttribute("macrotext", "/cast " .. FishingName())
 	cast.key:SetText(KeyText() or "")
 	cast.state:SetText(channeling and L["Hook"] or L["Cast"])
+	-- Weapon Swap, at the right: the weapons that go back on when Fishing Mode ends.
+	local owed = {}
+	local w = char and Get("restoreWeapons") and char.weapons
+	if type(w) == "table" then
+		for _, link in ipairs({ w[1], w[2] }) do
+			if type(link) == "string" then owed[#owed + 1] = link end
+		end
+	end
+	local swapW = 0
+	if #owed > 0 then
+		swapW = math.max(#owed * SIZE + (#owed - 1) * GAP, math.ceil(menu.swap:GetStringWidth()))
+	end
+	local width = math.max(x + CAST_SIZE + PAD + (swapW > 0 and GAP * 3 + swapW or 0), WIDTH)
+	local right = width - PAD - swapW / 2      -- the middle of the Weapon Swap block
+	local wx = right - (#owed * SIZE + (#owed - 1) * GAP) / 2
+	for i, link in ipairs(owed) do
+		local b = WeaponButton(i)
+		b.link = link
+		b.icon:SetTexture(C_Item.GetItemIconByID(link) or (GetItemIcon and GetItemIcon(link)))
+		b:ClearAllPoints()
+		b:SetPoint("TOPLEFT", menu, "TOPLEFT", wx + (i - 1) * (SIZE + GAP), top - (CAST_SIZE - SIZE) / 2)
+		b:Show()
+	end
+	for i = #owed + 1, #weaponButtons do weaponButtons[i]:Hide() end
+	menu.swap:ClearAllPoints()
+	menu.swap:SetPoint("TOP", menu, "TOPLEFT", right, top - CAST_SIZE - 3)
+	menu.swap:SetShown(#owed > 0)
 	UpdateCatch()
 	UpdateSkill()
-	local width = math.max(x + CAST_SIZE + PAD, WIDTH)
 	menu:SetSize(width, -top + CAST_SIZE + 26)
 	SkinWindow(menu)
 end
@@ -555,9 +601,10 @@ end
 -- ---------------------------------------------------------------------------------------------
 -- The quiet screen: while you fish, the rest of the UI fades away the way DaylightUI's soft AFK
 -- screen fades it (through UIParent's alpha, which is allowed in a fight and moves nothing), and
--- the fishing menu, the minimap and the chat stay. It comes back while you move or fight, and
--- when Fishing Mode ends. It leaves the UI to DaylightUI's AFK screen while that is up, and adds
--- nothing to the world: DaylightUI's own "Fishing water" is its setting (Quality of Life).
+-- the fishing menu, the minimap and the chat stay. It comes back in a fight (and as you move, with
+-- "Stay faded while moving" off), and when Fishing Mode ends. It leaves the UI to DaylightUI's
+-- AFK screen while that is up, and adds nothing to the world: DaylightUI's own "Fishing water"
+-- is its setting (Quality of Life).
 -- ---------------------------------------------------------------------------------------------
 
 local fader = CreateFrame("Frame")
@@ -659,15 +706,59 @@ local function UpdateMapAway()
 	MapAway(fade >= 1 and low <= 0.001 and Get("keepMinimap") == false)
 end
 
+-- 3D models draw at full strength whatever their parents' alpha, so a faded UI would leave them
+-- floating on the screen. DaylightUI's own (the unit frames' portraits) follow its UIAlpha signal,
+-- which Fade.SetUIAlpha sends. Other addons' models are given their frame's alpha here while the
+-- UI is faded, and what they had before after: Polestar's target button faces.
+local followed = {}        -- model -> its alpha before
+
+local function FollowModels()
+	local i = 1
+	while true do
+		local row = _G["PolestarTargetRow" .. i]
+		if not row then break end
+		local m = row.Model
+		if type(m) == "table" and m.SetAlpha and row.GetEffectiveAlpha then
+			if followed[m] == nil then followed[m] = m:GetAlpha() or 1 end
+			local a = row:GetEffectiveAlpha()
+			if type(a) == "number" then m:SetAlpha(followed[m] * a) end
+		end
+		i = i + 1
+	end
+end
+
+local function ReleaseModels()
+	for m, a in pairs(followed) do m:SetAlpha(a) end
+	wipe(followed)
+end
+
+-- A faded window still answers the mouse, so passing over one out of sight (Polestar's guide)
+-- showed its tooltip, which stays out of the fade for the catch's. A tooltip whose owner is out of
+-- sight is hidden. Not one owned by the screen itself (the bobber's, a mob's in the world).
+local function TipFromFaded()
+	if fade <= 0 or not GameTooltip:IsShown() then return end
+	local owner = GameTooltip:GetOwner()
+	if not owner or owner == UIParent or owner == WorldFrame or not owner.GetEffectiveAlpha then return end
+	local a = owner:GetEffectiveAlpha()
+	if type(a) == "number" and a < 0.05 then GameTooltip:Hide() end
+end
+GameTooltip:HookScript("OnShow", TipFromFaded)
+
 local function SetFade(p)
 	fade = p
 	local low = tonumber(Get("fadeAlpha")) or 0
-	UIParent:SetAlpha(1 - p * (1 - low))
+	local a = 1 - p * (1 - low)
+	-- (DaylightUI's way, so its portraits fade with the rest; else UIParent's own alpha.)
+	local F = DUI and DUI.Fade
+	if not (type(F) == "table" and type(F.SetUIAlpha) == "function" and pcall(F.SetUIAlpha, a)) then
+		UIParent:SetAlpha(a)
+	end
 	if p > 0 and not liftedOn then
 		LiftAll()
 	elseif p <= 0 and liftedOn then
 		DropAll()
 	end
+	if p > 0 then FollowModels() else ReleaseModels() end
 	UpdateMapAway()
 end
 
@@ -690,10 +781,15 @@ local function WantFade()
 		stillSince = nil
 		return false
 	end
-	if (GetUnitSpeed("player") or 0) > 0 or IsFalling()
-		or (Get("keepChat") == false and ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow()) then
+	if Get("keepChat") == false and ChatEdit_GetActiveWindow and ChatEdit_GetActiveWindow() then
 		stillSince = nil
 		return false
+	end
+	if (GetUnitSpeed("player") or 0) > 0 or IsFalling() then
+		stillSince = nil
+		-- "Stay faded while moving": a faded UI stays out of sight as you walk (it only starts
+		-- fading once you stand still).
+		return Get("fadeMoving") ~= false and fade > 0
 	end
 	stillSince = stillSince or GetTime()
 	return GetTime() - stillSince >= (tonumber(Get("fadeDelay")) or 2)
@@ -723,6 +819,7 @@ fader:SetScript("OnUpdate", function(_, elapsed)
 	-- DaylightUI's AFK screen has the UI then, and gives it back whole: nothing of ours stays over it.
 	if AfkScreen() then
 		if liftedOn then DropAll() end
+		ReleaseModels()
 		fade, stillSince = 0, nil
 		MapAway(false)
 		return
@@ -732,6 +829,8 @@ fader:SetScript("OnUpdate", function(_, elapsed)
 		if relift > 0.25 then
 			relift = 0
 			LiftAll()
+			FollowModels()
+			TipFromFaded()
 		end
 	end
 	local target = WantFade() and 1 or 0
@@ -2441,13 +2540,16 @@ local pages = {
 		} },
 		{ label = L["Quiet screen"], items = {
 			{ type = "toggle", key = "fadeUI", label = L["Fade the UI while fishing"],
-			  desc = L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you move, chat, loot by hand or fight, and when Fishing Mode ends."]
+			  desc = L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."]
 				.. " " .. L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] },
 			{ type = "slider", key = "fadeAlpha", label = L["Faded UI opacity"], min = 0, max = 0.6, step = 0.05, unit = "%",
 			  desc = L["How much of the UI still shows while faded. 0 hides it."],
 			  disabled = function(get) return get("fadeUI") == false end },
 			{ type = "slider", key = "fadeDelay", label = L["Fade after standing still"], min = 0, max = 10, step = 0.5, unit = "s",
 			  desc = L["Seconds of standing still before the UI fades."],
+			  disabled = function(get) return get("fadeUI") == false end },
+			{ type = "toggle", key = "fadeMoving", label = L["Stay faded while moving"],
+			  desc = L["Walking about while you fish keeps the UI faded. Off: it comes back as you move."],
 			  disabled = function(get) return get("fadeUI") == false end },
 			{ type = "toggle", key = "keepMinimap", label = L["Keep the minimap"],
 			  desc = L["The minimap stays while the rest of the UI fades."],

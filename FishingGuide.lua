@@ -22,6 +22,11 @@ end
 
 -- What changed, newest first: shown once after an update ("What's new" in the options shows them again).
 local NEWS = {
+	{ version = "1.7.0", lines = {
+		L["Weapon Swap on the menu: the weapons that go back on when Fishing Mode ends."],
+		L["Stay faded while moving (on to start): walking about keeps the UI faded."],
+		L["While faded, Polestar's target faces, DaylightUI's portraits and the tooltips of windows out of sight stay hidden."],
+	} },
 	{ version = "1.6.14", lines = {
 		L["On the first start you pick your fishing key, before the welcome."],
 	} },

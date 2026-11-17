@@ -14,7 +14,7 @@ Requires **DaylightUI**.
 
 ## While it's on
 - **Your best fishing pole** goes on, and the sound is set up for fishing (effects up, music and ambience down).
-- **A fishing menu** under your character: your bait (click to put it on), the bait timer and the cast button.
+- **A fishing menu** under your character: your bait (click to put it on), the bait timer, the cast button and the weapons that go back on afterwards.
 - **One key** casts, and hooks the fish once the bobber is out: Space by default, or any key or mouse button you like (**Set Fishing Key**).
 - **The rest of the UI fades away** while you stand and fish, keeping the menu, minimap, chat and bags.
 - **A catch counter** for the session (hover it for the totals, click it for the list).
@@ -25,6 +25,11 @@ Requires **DaylightUI**.
 Everything goes back as it was when Fishing Mode ends.
 
 ---
+
+## New in 1.7.0
+- **Weapon Swap** on the fishing menu: the weapons that go back on when Fishing Mode ends.
+- **Stay faded while moving** (on to start): walk about and the UI stays faded.
+- **A cleaner faded screen:** Polestar's target faces, DaylightUI's 3D portraits and the tooltips of windows out of sight no longer show through.
 
 ## New in 1.6.12
 - **A welcome** on first launch that says what Fishing Mode takes over while it's on. **Start Tour** shows you around: the menu, baits, your fishing key (try a cast), skill and catch, fights and settings.
