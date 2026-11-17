@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.6.14
+- New: on the first start, Daylight Fishing asks for your fishing key before the welcome (the welcome and the tour wait until you've picked one). With Forever Fishing loaded, the box says which key Forever Fishing uses so you can pick a different one. Escape keeps Space. Players who already had Daylight Fishing aren't asked; Set Fishing Key in the options changes it any time.
+
 ## 1.6.13
 - With Mastercraft installed, its "Hide the game's interface" stays on Never while "Fade the UI while fishing" is on. Both set the UI's opacity, so with both on the UI could stay faded after fishing. Turning our fade off, or Revert to Mastercraft, gives its setting back as it was.
 

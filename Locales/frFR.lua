@@ -226,3 +226,8 @@ L["While Fishing Mode is on, %s casts. When the bobber splashes, press it again 
 L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] = "Avec Mastercraft chargé, son « Hide the game's interface » reste sur Never tant que ceci est activé ; le désactiver le lui rend."
 L["So does its \"Hide the game's interface\"."] = "Ainsi que son « Hide the game's interface »."
 L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."] = "Avec Mastercraft installé, son « Hide the game's interface » reste sur Never tant que l'atténuation de l'interface est activée, pour que l'interface ne reste pas atténuée."
+
+-- 1.6.14: first-start key pick
+L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."] = "Choisissez la touche qui lance et ferre en mode pêche. Vous pouvez la changer à tout moment avec Définir la touche de pêche dans les options."
+L["Forever Fishing uses %s: pick a different key so the two don't fight over it."] = "Forever Fishing utilise %s : choisissez une autre touche pour qu'ils ne se la disputent pas."
+L["On the first start you pick your fishing key, before the welcome."] = "Au premier lancement, vous choisissez votre touche de pêche, avant l'accueil."

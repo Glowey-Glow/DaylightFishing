@@ -22,6 +22,9 @@ end
 
 -- What changed, newest first: shown once after an update ("What's new" in the options shows them again).
 local NEWS = {
+	{ version = "1.6.14", lines = {
+		L["On the first start you pick your fishing key, before the welcome."],
+	} },
 	{ version = "1.6.13", lines = {
 		L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."],
 	} },
@@ -36,7 +39,8 @@ local NEWS = {
 	} },
 }
 
-Guide.Setup({
+-- (Kept on ns: Core.lua reads wasExisting, which the guide sets on it, for its first-start key pick.)
+ns.GuideSpec = {
 	name = "Daylight Fishing",
 	db = function() return _G.DaylightFishingDB end,
 	-- (A player from before the guide: anything saved besides the guide's own.)
@@ -74,7 +78,8 @@ Guide.Setup({
 		available = MastercraftLoaded,
 		fn = function() pcall(DUI.Set, DUI, ADDON, "mastercraftFights", false) end,
 	},
-})
+}
+Guide.Setup(ns.GuideSpec)
 
 Guide.AddTour("fishing", {
 	-- (The menu shows for the tour even with Fishing Mode off, and goes again after.)

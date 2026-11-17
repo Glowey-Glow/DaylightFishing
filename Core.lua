@@ -2090,6 +2090,8 @@ local function Login()
 	UpdateBroker()
 	ApplyMastercraft()
 	AskMastercraft()
+	-- (Before the welcome, which comes 4 seconds after login and waits while the key box is open.)
+	C_Timer.After(2, Fishing.FirstKey)
 	if C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("ForeverFishing") then
 		Print(L["Forever Fishing is loaded too: give the two different keys, or turn one off."])
 	end
@@ -2214,6 +2216,8 @@ Fishing.SetKey = (function()
 	local BOX_MOUSE = { MiddleButton = "BUTTON3", Button4 = "BUTTON4", Button5 = "BUTTON5" }
 
 	local keyBox
+	-- The first start: the box asks for a key before the welcome (which waits while it's open).
+	local first = false
 
 	local function KeyName(key)
 		if type(key) ~= "string" or key == "" or key == "NONE" then return nil end
@@ -2234,10 +2238,28 @@ Fishing.SetKey = (function()
 		local kb = keyBox
 		kb.now:SetText(L["Now: %s"]:format(KeyName(Get("key")) or L["no key (click the cast button)"]))
 		kb.clear:SetShown(KeyName(Get("key")) ~= nil)
+		-- The first start: what the key is for, and Forever Fishing's key when it's loaded too.
+		local lead = ""
+		if first then
+			lead = L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."]
+			local ffdb = C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("ForeverFishing")
+				and _G.ForeverFishingDB
+			local theirs = type(ffdb) == "table" and KeyName(ffdb.key or "SPACE")
+			if theirs then
+				lead = lead .. "\n\n" .. L["Forever Fishing uses %s: pick a different key so the two don't fight over it."]:format(theirs)
+			end
+		end
+		kb.lead:SetText(lead)
+		kb.now:ClearAllPoints()
+		if lead ~= "" then
+			kb.now:SetPoint("TOPLEFT", kb.lead, "BOTTOMLEFT", 0, -8)
+		else
+			kb.now:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -40)
+		end
 		-- Tall enough for every line at its width: nothing is cut short.
 		local w = kb:GetWidth() - 24
 		local h = 40
-		for _, fs in ipairs({ kb.now, kb.help, kb.msg }) do
+		for _, fs in ipairs({ kb.lead, kb.now, kb.help, kb.msg }) do
 			fs:SetWidth(w)
 			local text = fs:GetText()
 			if text and text ~= "" then h = h + math.ceil(fs:GetStringHeight() or 14) + 6 end
@@ -2301,6 +2323,9 @@ Fishing.SetKey = (function()
 		head:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -12)
 		head:SetText(L["Fishing key"])
 		BoxInk(head, "TITLE")
+		kb.lead = API.Text(kb, "body", "LEFT")
+		kb.lead:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -40)
+		BoxInk(kb.lead, "TEXT")
 		kb.now = API.Text(kb, "body", "LEFT")
 		kb.now:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -40)
 		BoxInk(kb.now, "VALUE")
@@ -2310,7 +2335,7 @@ Fishing.SetKey = (function()
 		BoxInk(kb.help, "TEXT")
 		kb.msg = API.Text(kb, "small", "LEFT")
 		kb.msg:SetPoint("TOPLEFT", kb.help, "BOTTOMLEFT", 0, -6)
-		for _, fs in ipairs({ kb.now, kb.help, kb.msg }) do fs:SetWordWrap(true) end
+		for _, fs in ipairs({ kb.lead, kb.now, kb.help, kb.msg }) do fs:SetWordWrap(true) end
 		local close = API.Close(kb, function() ShowKeyBox(false) end)
 		if close then close:SetPoint("TOPRIGHT", kb, "TOPRIGHT", -6, -6) end
 		kb.clear = API.Button(kb, L["Clear"], 24)
@@ -2327,15 +2352,55 @@ Fishing.SetKey = (function()
 		kb:SetScript("OnMouseDown", function(_, which)
 			if BOX_MOUSE[which] then TakeKey(BOX_MOUSE[which]) end
 		end)
+		-- (However it closes, Escape included: the first-start question is answered, and the
+		-- welcome may come.)
+		kb:SetScript("OnHide", function()
+			if not first then return end
+			first = false
+			if type(db) == "table" then db.keyAsked = true end
+			if type(_G.DaylightGuides) == "table" then _G.DaylightGuides.DaylightFishingKey = nil end
+		end)
 		kb:Hide()
 		if type(UISpecialFrames) == "table" then table.insert(UISpecialFrames, "DaylightFishingKeyBox") end
 	end
 
-	return function()
+	-- firstStart: asked once on the plugin's first start, before the welcome.
+	return function(firstStart)
 		BuildKeyBox()
+		if firstStart and not InCombatLockdown() then
+			first = true
+			_G.DaylightGuides = type(_G.DaylightGuides) == "table" and _G.DaylightGuides or {}
+			_G.DaylightGuides.DaylightFishingKey = true
+		end
 		ShowKeyBox(true)
 	end
 end)()
+
+-- The first start (a new player, not one from before the welcome came): the key is picked first.
+-- Waits for a fight, DaylightUI's own setup guide, or another Daylight plugin's welcome or tour.
+function Fishing.FirstKey()
+	if type(db) ~= "table" or db.keyAsked then return end
+	local spec = ns.GuideSpec
+	if not (ns.Guide and ns.Guide.Welcoming and ns.Guide.Welcoming()) or (spec and spec.wasExisting) then
+		db.keyAsked = true
+		return
+	end
+	local busy = InCombatLockdown()
+	for _, name in ipairs({ "DaylightUIInstaller", "DaylightUITour", "DaylightUITourAsk" }) do
+		local f = _G[name]
+		if type(f) == "table" and f.IsShown and f:IsShown() and (f:GetAlpha() or 0) > 0.05 then busy = true end
+	end
+	if type(_G.DaylightGuides) == "table" then
+		for _, on in pairs(_G.DaylightGuides) do
+			if on then busy = true end
+		end
+	end
+	if busy then
+		C_Timer.After(5, Fishing.FirstKey)
+		return
+	end
+	Fishing.SetKey(true)
+end
 
 local function NotSound(get) return get("sound") == false end
 

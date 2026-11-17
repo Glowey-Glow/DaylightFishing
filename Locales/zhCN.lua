@@ -226,3 +226,8 @@ L["While Fishing Mode is on, %s casts. When the bobber splashes, press it again 
 L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] = "加载了 Mastercraft 时，开启此项期间它的“Hide the game's interface”保持为 Never；关闭此项后恢复原样。"
 L["So does its \"Hide the game's interface\"."] = "它的“Hide the game's interface”也一样。"
 L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."] = "安装了 Mastercraft 时，开启淡化界面期间它的“Hide the game's interface”保持为 Never，界面不会一直处于淡化状态。"
+
+-- 1.6.14: first-start key pick
+L["Pick the key that casts and hooks while Fishing Mode is on. You can change it any time with Set Fishing Key in the options."] = "选择钓鱼模式下用于抛竿和收竿的按键。随时可以在选项中用“设置钓鱼按键”更改。"
+L["Forever Fishing uses %s: pick a different key so the two don't fight over it."] = "Forever Fishing 使用 %s：请选择另一个按键，以免两者冲突。"
+L["On the first start you pick your fishing key, before the welcome."] = "首次启动时，会在欢迎界面之前先选择钓鱼按键。"
