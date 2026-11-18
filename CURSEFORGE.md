@@ -26,6 +26,9 @@ Everything goes back as it was when Fishing Mode ends.
 
 ---
 
+## New in 1.7.1
+- **Fix:** Shift-clicking an item in the catch list links it in chat without a Lua error.
+
 ## New in 1.7.0
 - **Weapon Swap** on the fishing menu: the weapons that go back on when Fishing Mode ends.
 - **Stay faded while moving** (on to start): walk about and the UI stays faded.
