@@ -1,5 +1,8 @@
 # Daylight Fishing
 
+## 1.7.1
+- Shift-clicking an item in the catch list puts its link in chat through the game's current call. The old one only exists while the game's deprecated-API addon is loaded, and without it the click raised a Lua error.
+
 ## 1.7.0
 - New: Weapon Swap on the fishing menu, at its right: the weapon or weapons that go back on when Fishing Mode ends. Hover one for the item. It shows while "Put my weapons back on" is on.
 - New: "Stay faded while moving" (on to start). Once the UI has faded, walking about keeps it faded; a fight, the chat box (with Keep the chat off) or Fishing Mode ending still bring it back. Off, the UI comes back as you move, as before.

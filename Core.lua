@@ -1307,7 +1307,12 @@ local function PanelRow(i)
 	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	-- Shift-click: the item's link into chat, as everywhere in the game.
 	row:SetScript("OnClick", function(self)
-		if self.link and IsModifiedClick("CHATLINK") then ChatEdit_InsertLink(self.link) end
+		if not (self.link and IsModifiedClick("CHATLINK")) then return end
+		-- ChatFrameUtil.InsertLink is the game's call; ChatEdit_InsertLink only lives in its
+		-- deprecated-API addon.
+		local U = _G.ChatFrameUtil
+		if U and type(U.InsertLink) == "function" then U.InsertLink(self.link)
+		elseif type(_G.ChatEdit_InsertLink) == "function" then _G.ChatEdit_InsertLink(self.link) end
 	end)
 	panel.rows[i] = row
 	return row
