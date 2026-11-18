@@ -1,15 +1,15 @@
 # Daylight Fishing
 
-**Fishing Mode for DaylightUI on WoW: Forever:** everything set up for fishing with one click, and put back as it was when you're done.
+**Fishing Mode for Daylight UI on WoW: Forever:** everything set up for fishing with one click, and put back as it was when you're done.
 
-Requires **DaylightUI**.
+Requires **Daylight UI**.
 
 ---
 
 ## Turn on Fishing Mode
-- click the **Fishing Mode** data text on your DaylightUI data bars;
+- click the **Fishing Mode** data text on your Daylight UI data bars;
 - type `/dui fish`;
-- use the **Fishing Mode** macro (make it with **Make a Fishing Mode macro** in the settings and drag it to an action bar);
+- use the **Fishing Mode** macro (make it with **Make a Fishing Mode Macro** in the settings and drag it to an action bar);
 - or just put on a fishing pole: Fishing Mode turns on by itself, and off when you take the pole off.
 
 ## While it's on
@@ -26,18 +26,22 @@ Everything goes back as it was when Fishing Mode ends.
 
 ---
 
+## New in 1.8.0
+- **Controller support:** the catch list, trainer box, tours and Set Fishing Key work with a controller.
+- **For controller players:** Catch List Always On and Trainer Box Always On keep them open while you fish, without taking the cursor.
+
 ## New in 1.7.1
 - **Fix:** Shift-clicking an item in the catch list links it in chat without a Lua error.
 
 ## New in 1.7.0
 - **Weapon Swap** on the fishing menu: the weapons that go back on when Fishing Mode ends.
-- **Stay faded while moving** (on to start): walk about and the UI stays faded.
-- **A cleaner faded screen:** Polestar's target faces, DaylightUI's 3D portraits and the tooltips of windows out of sight no longer show through.
+- **Stay Faded While Moving** (on to start): walk about and the UI stays faded.
+- **A cleaner faded screen:** Polestar's target faces, Daylight UI's 3D portraits and the tooltips of windows out of sight no longer show through.
 
 ## New in 1.6.12
 - **A welcome** on first launch that says what Fishing Mode takes over while it's on. **Start Tour** shows you around: the menu, baits, your fishing key (try a cast), skill and catch, fights and settings.
 - **What's new:** a short note after each update.
-- **Help** in the settings: **Retake Tour**, **What's new**, and **Revert to Mastercraft** when Mastercraft is installed.
+- **Help** in the settings: **Retake Tour**, **What's New**, and **Revert to Mastercraft** when Mastercraft is installed.
 - **Update alert:** a chat line when a newer version is out (once a session; switch it off under Updates).
 
 ## New in 1.6.11
@@ -51,7 +55,7 @@ Daylight Fishing speaks German, French, Spanish, Russian, Korean and Simplified 
 ---
 
 ## Settings
-DaylightUI options > **Plugins > Fishing**. Window opacity follows DaylightUI's, or set your own there.
+Daylight UI options > **Plugins > Fishing**. Window opacity follows Daylight UI's, or set your own there.
 
 ---
 

@@ -28,8 +28,189 @@
 --   true, or a function asked as the step shows),
 --   done() (it moves on once true) } ... }, start() (opens what the tour shows) }.
 -- Seen tours, the welcome and the last notes read are kept in db().guide (per account).
+-- On a controller (the game's controller interface on), the card, the welcome and "what's new" take
+-- the D-pad (ns.Pad, below): it starts on Next (or the main button), A presses, B skips the tour
+-- (Done on its last card) or closes the note.
 -- luacheck: read globals CreateFrame UIParent C_Timer InCombatLockdown GetScreenWidth GetScreenHeight
 local ADDON, ns = ...
+
+-- ---------------------------------------------------------------------------------------------
+-- ns.Pad: our windows on a controller, through DaylightUI's own controller kit (DaylightUI.Pad).
+-- That kit isn't part of DaylightUI's API, so every call here is checked and wrapped: with a
+-- DaylightUI without it, or one where it changed, these do nothing and our windows work as before,
+-- with the mouse. The game gives its controller cursor (D-pad, A, B, the right stick) only to the
+-- windows it's told about, and only out of a fight: DaylightUI tells it, and a window opened in a
+-- fight is told once the fight is over.
+--   Pad.On()                   the game's controller interface is on
+--   Pad.Follow(frame, close)   the controller cursor works in frame while it's shown (also when
+--                              it's hidden along with its parent); close() is what B does. The
+--                              kit's fields work on frame: padFirst(), padTabs(), padKeys...
+--   Pad.Popup(frame, close)    a small list over a window: takes the cursor, then gives it back
+--   Pad.Settle(aim)            a window changed: the game finds its buttons again, the cursor goes
+--                              to aim (a button) or off one that's gone
+--   Pad.Front(frame)           the cursor back on frame when another window took it
+--   Pad.KeepOff(frame)         a game window held out of sight under ours stays off the game's
+--                              list (the game puts it back on with each page it opens);
+--                              Pad.Remember(frame) puts it back once it's handed back
+--   Pad.Skip(frame)            the cursor never stops on it (a look-alike under a secure button)
+--   Pad.Edge(button, dir, fn)  the D-pad's "UP" or "DOWN" on button asks fn() first: true when it
+--                              scrolled the list under the cursor (which then stays where it is)
+--   Pad.Scroller(spec)         a stand-in scroll frame for a list drawn from an offset, for the
+--                              right stick: spec = { range(), at(), set(pixels) }; s.Sync() after
+--                              the list moves or changes
+--   Pad.Stick(frame, scroll)   the right stick scrolls `scroll` while frame has the cursor
+--   Pad.Into(region, scroll)   the same, for the followed window holding region (a row's OnEnter:
+--                              the stick scrolls the list the cursor is in)
+-- Nothing runs while no window of ours is open.
+-- ---------------------------------------------------------------------------------------------
+
+local Pad = {}
+ns.Pad = Pad
+local padFollowed = setmetatable({}, { __mode = "k" })
+local padPopups = setmetatable({}, { __mode = "k" })
+local padSkipped = setmetatable({}, { __mode = "k" })
+
+local function Kit()
+	local D = _G.DaylightUI
+	local P = type(D) == "table" and D.Pad or nil
+	return type(P) == "table" and P or nil
+end
+
+local function KitCall(name, ...)
+	local P = Kit()
+	local fn = P and P[name]
+	if type(fn) ~= "function" then return nil end
+	local ok, got = pcall(fn, ...)
+	if ok then return got end
+	return nil
+end
+
+function Pad.On() return KitCall("On") == true end
+
+-- Marks the game's controller code keeps on a frame: set through its own calls, out of a fight
+-- only (in one, they wait for its end).
+local padLater, padWaiter = {}, nil
+local function Calm(fn)
+	if not InCombatLockdown() then
+		pcall(fn)
+		return
+	end
+	padLater[#padLater + 1] = fn
+	if not padWaiter then
+		padWaiter = CreateFrame("Frame")
+		padWaiter:SetScript("OnEvent", function(self)
+			self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+			local list = padLater
+			padLater = {}
+			for _, f in ipairs(list) do pcall(f) end
+		end)
+	end
+	padWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+end
+
+function Pad.Follow(frame, close)
+	if type(frame) ~= "table" or padFollowed[frame] then return end
+	local P = Kit()
+	if not (P and type(P.Follow) == "function") then return end
+	padFollowed[frame] = true
+	KitCall("Follow", frame, close)
+	-- (Hidden along with its parent, a frame still says it's shown: the game is told all the same.)
+	frame:HookScript("OnHide", function(self)
+		if self:IsShown() then KitCall("Leaving", self) end
+	end)
+end
+
+function Pad.Popup(frame, close)
+	if type(frame) ~= "table" or padPopups[frame] then return end
+	local P = Kit()
+	if not (P and type(P.Popup) == "function") then return end
+	padPopups[frame] = true
+	KitCall("Popup", frame, close)
+end
+
+function Pad.Settle(aim) KitCall("Settle", aim) end
+
+function Pad.Front(frame)
+	if not (padFollowed[frame] and frame:IsVisible() and Pad.On()) or InCombatLockdown() then return end
+	local G = _G.GamepadMode
+	local m = type(G) == "table" and G.FrameControlsManager or nil
+	if type(m) ~= "table" or type(m.GetActiveFrame) ~= "function" then return end
+	local ok, active = pcall(m.GetActiveFrame, m)
+	-- (Only with another window listed: one taken off a list it leaves empty is refused.)
+	if not ok or active == nil or active == frame then return end
+	KitCall("Leaving", frame)
+	KitCall("Returning", frame)
+end
+
+function Pad.KeepOff(frame)
+	if type(frame) == "table" and Pad.On() then KitCall("KeepOff", frame) end
+end
+
+function Pad.Remember(frame)
+	if type(frame) == "table" and Pad.On() then KitCall("Remember", frame) end
+end
+
+function Pad.Skip(frame)
+	if type(frame) ~= "table" or padSkipped[frame] then return end
+	padSkipped[frame] = true
+	Calm(function()
+		local mark = _G.SmartNavigation_MarkFrameIgnored
+		if type(mark) == "function" then mark(frame) end
+	end)
+end
+
+function Pad.Edge(button, dir, fn)
+	if type(button) ~= "table" or type(fn) ~= "function" or not Kit() then return end
+	Calm(function()
+		local add, dirs = _G.SmartNavigation_AddJumpNavigationOverride, _G.SMART_NAV_INPUT_DIRECTION
+		if type(add) ~= "function" or type(dirs) ~= "table" or not dirs[dir] then return end
+		add(button, dirs[dir], function()
+			local ok, moved = pcall(fn)
+			if ok and moved then return true end
+			return nil
+		end)
+	end)
+end
+
+function Pad.Scroller(spec)
+	if not Kit() then return nil end
+	local s = CreateFrame("ScrollFrame", nil, UIParent)
+	s:SetSize(1, 100)
+	s:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", -16, -16)
+	s:EnableMouse(false)
+	local child = CreateFrame("Frame", nil, s)
+	child:SetSize(1, 100)
+	s:SetScrollChild(child)
+	local quiet = false
+	function s.Sync()
+		local okR, range = pcall(spec.range)
+		local okA, at = pcall(spec.at)
+		range = okR and type(range) == "number" and math.max(0, range) or 0
+		at = okA and type(at) == "number" and at or 0
+		quiet = true
+		child:SetHeight(100 + range)
+		s:SetVerticalScroll(math.max(0, math.min(range, at)))
+		quiet = false
+	end
+	s:SetScript("OnVerticalScroll", function(_, v)
+		if not quiet then pcall(spec.set, v) end
+	end)
+	return s
+end
+
+function Pad.Stick(frame, scroll)
+	if type(frame) ~= "table" or not padFollowed[frame] or frame.padScroll == scroll then return end
+	frame.padScroll = scroll
+	if Pad.On() and not InCombatLockdown() then KitCall("Scrolls", frame) end
+end
+
+function Pad.Into(region, scroll)
+	if not scroll or not Pad.On() then return end
+	local f = region
+	while f and not padFollowed[f] do f = f.GetParent and f:GetParent() or nil end
+	if f then Pad.Stick(f, scroll) end
+end
+
 local API = _G.DaylightUI and _G.DaylightUI.API
 if not API then return end
 local L = ns.L or setmetatable({}, { __index = function(_, k) return k end })
@@ -180,7 +361,7 @@ local function BuildLayer()
 	card.back = Button(card, L["Back"])
 	card.back:SetPoint("RIGHT", card.next, "LEFT", -GAP, 0)
 	card.back:SetScript("OnClick", function() Guide.Back() end)
-	card.skip = Button(card, L["Skip tour"])
+	card.skip = Button(card, L["Skip Tour"])
 	card.skip:SetPoint("BOTTOMLEFT", EDGE, EDGE)
 	card.skip:SetScript("OnClick", function() Guide.Skip() end)
 
@@ -195,6 +376,24 @@ local function BuildLayer()
 			self:SetPropagateKeyboardInput(true)
 		end
 	end)
+
+	-- A controller: the cursor on the card (Next first), B skips (Done on the last card). Its button
+	-- bar goes under the card, above the dim.
+	layer.padFirst = function() return card.next end
+	layer.padKeys = { { key = "B", follow = true,
+		label = function() return (S and S.i < #S.def.steps) and L["Skip Tour"] or L["Done"] end,
+		when = function() return S ~= nil end, run = function() Guide.Close() end } }
+	layer.padHintsPlace = function(bar)
+		bar:SetPoint("TOP", card, "BOTTOM", 0, -6)
+		bar:SetFrameStrata("FULLSCREEN_DIALOG")
+		bar:SetFrameLevel(card:GetFrameLevel() + 5)
+	end
+	layer:HookScript("OnHide", function()
+		local P = Kit()
+		local bar = P and P.hints
+		if type(bar) == "table" and bar.SetFrameStrata then pcall(bar.SetFrameStrata, bar, "DIALOG") end
+	end)
+	Pad.Follow(layer, function() Guide.Close() end)
 
 	layer:SetScript("OnUpdate", function(self, dt)
 		self.since = (self.since or 0) + dt
@@ -355,6 +554,14 @@ local function Show()
 	S.box = false
 	S.shown = S.i
 	Guide.Paint()
+	-- A controller: the cursor back on the card (a window the step opened may have taken it), on
+	-- Next unless it's on a button of the card that's still there.
+	if Pad.On() then
+		Pad.Front(layer)
+		local at = KitCall("Stop")
+		local keep = type(at) == "table" and at.IsVisible and at:IsVisible() and at.GetParent and at:GetParent() == card
+		Pad.Settle(not keep and card.next or nil)
+	end
 end
 
 local function Leave(nextStep)
@@ -403,6 +610,13 @@ function Guide.Skip()
 	if not S then return end
 	Finish("skip")
 	Toast(string.format(L["Tour skipped. %s in %s's options shows it again."], Guide.Pop(L["Retake Tour"]), spec and spec.name or ""))
+end
+
+-- B on a controller: skips the tour, or ends it on its last card.
+function Guide.Close()
+	if not S then return end
+	if S.i < #S.def.steps then return Guide.Skip() end
+	Finish("done")
 end
 
 function Guide.Running() return S ~= nil end
@@ -496,6 +710,12 @@ local function BuildNote()
 	note.main:SetPoint("BOTTOMRIGHT", -18, 18)
 	note.other = Button(note, "")
 	note.other:SetPoint("RIGHT", note.main, "LEFT", -GAP, 0)
+	-- A controller: the cursor starts on the main button; B is the X.
+	note.padFirst = function() return note.main end
+	Pad.Follow(note, function()
+		note:Hide()
+		if note.onClose then note.onClose() end
+	end)
 end
 
 -- title, body text, main = { label, fn }, other = { label, fn } or nil, onClose (its X).
@@ -519,6 +739,8 @@ local function ShowNote(title, body, main, other, onClose)
 	note:SetHeight(math.ceil(h))
 	API.Skin(note, { window = true })
 	SetBusy(true)
+	-- (Already up with other words: a controller's cursor goes to the main button again.)
+	if note:IsShown() then Pad.Settle(note.main) end
 	note:Show()
 end
 
@@ -558,7 +780,7 @@ end
 function Guide.Welcome()
 	local takes = spec.takes and spec.takes() or {}
 	local head = spec.heading or (CanRevert() and L["What it takes over (you can go back any time with Revert in its options):"]
-		or L["What it takes over:"])
+		or L["What It Takes Over:"])
 	local body = (spec.intro or "") .. "\n\n" .. head .. "\n" .. Bullets(takes)
 	-- (Answered only by a button or the X: until then it shows again at the next login.)
 	local function Answered()
@@ -596,7 +818,7 @@ function Guide.News(all)
 	if #parts == 0 then return end
 	local latest = spec.news[1].version
 	G().newsSeen = latest
-	ShowNote(string.format(L["What's new in %s"], spec.name), table.concat(parts, "\n\n"),
+	ShowNote(string.format(L["What's New in %s"], spec.name), table.concat(parts, "\n\n"),
 		{ L["Okay"], function() end },
 		spec.tour and { L["Retake Tour"], StartTour } or nil)
 end
@@ -663,7 +885,7 @@ function Guide.HelpGroup()
 		{ type = "button", label = L["Retake Tour"], text = L["Start"],
 		  desc = L["Shows the tour again from its first step."],
 		  func = function() StartTour() end },
-		{ type = "button", label = L["What's new"], text = L["Show"],
+		{ type = "button", label = L["What's New"], text = L["Show"],
 		  desc = L["The changes in the latest versions."],
 		  func = function() Guide.News(true) end },
 	}

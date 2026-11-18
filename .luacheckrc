@@ -40,7 +40,7 @@ read_globals = {
 	"GOLD_AMOUNT_SYMBOL",
 	"GameTooltip",
 	"WorldFrame",
-	"GetBindingText",
+	"GetBindingText", "GetBindingAction",
 	"GetCVar",
 	"GetFileIDFromPath",
 	"GetInventoryItemID",

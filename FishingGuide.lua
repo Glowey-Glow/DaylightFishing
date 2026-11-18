@@ -22,16 +22,20 @@ end
 
 -- What changed, newest first: shown once after an update ("What's new" in the options shows them again).
 local NEWS = {
+	{ version = "1.8.0", lines = {
+		L["Controller support: the catch list, the trainer box, the tours and Set Fishing Key work with a controller."],
+		L["For controller players: Catch List Always On and Trainer Box Always On keep them open while you fish, without taking the cursor."],
+	} },
 	{ version = "1.7.0", lines = {
 		L["Weapon Swap on the menu: the weapons that go back on when Fishing Mode ends."],
 		L["Stay faded while moving (on to start): walking about keeps the UI faded."],
-		L["While faded, Polestar's target faces, DaylightUI's portraits and the tooltips of windows out of sight stay hidden."],
+		L["While faded, Polestar's target faces, Daylight UI's portraits and the tooltips of windows out of sight stay hidden."],
 	} },
 	{ version = "1.6.14", lines = {
 		L["On the first start you pick your fishing key, before the welcome."],
 	} },
 	{ version = "1.6.13", lines = {
-		L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI is on, so the UI can't stay faded."],
+		L["With Mastercraft installed, its \"Hide the game's interface\" stays on Never while Fade the UI While Fishing is on, so the UI can't stay faded."],
 	} },
 	{ version = "1.6.12", lines = {
 		L["A short tour of Fishing Mode, the first time it turns on. Retake Tour in the options shows it again."],
@@ -76,7 +80,7 @@ ns.GuideSpec = {
 	-- (2026-11-16: everyone gets the welcome and the tour once more with this release.)
 	reset = "2026-11-16",
 	revert = {
-		label = L["Fights while fishing"],
+		label = L["Fights While Fishing"],
 		text = L["Revert to Mastercraft"],
 		desc = L["Mastercraft handles fights again: its \"After the fight: your fishing gear back on\" comes back as it was."]
 			.. " " .. L["So does its \"Hide the game's interface\"."],
@@ -106,7 +110,7 @@ Guide.AddTour("fishing", {
 		if #baits > 0 then return baits end
 		return menu
 	  end },
-	{ title = L["One key"],
+	{ title = L["One Key"],
 	  text = function()
 		local _, _, _, key = Parts()
 		if key and Active() then
@@ -120,14 +124,14 @@ Guide.AddTour("fishing", {
 	  through = Active,
 	  done = function() return Active() and UnitChannelInfo and UnitChannelInfo("player") ~= nil end,
 	  part = function() local _, _, cast = Parts() return cast end },
-	{ title = L["Skill and catch"],
+	{ title = L["Skill and Catch"],
 	  text = L["The bar on top shows your fishing skill: click it to see where to train next. Your catch this session is counted at the bottom: click it for the list."],
 	  part = function() local menu = Parts() return menu end },
 	{ title = L["Fights"],
 	  text = L["A fight ends Fishing Mode at once and your weapons go back on, shield and all. Turn it on again once the fight is over."] },
 	{ title = L["Settings"],
 	  text = function()
-		return string.format(L["Your key, the sound and a Fishing Mode macro are in DaylightUI's options: %s. %s there shows this tour again."],
+		return string.format(L["Your key, the sound and a Fishing Mode macro are in Daylight UI's options: %s. %s there shows this tour again."],
 			Pop(L["Plugins > Fishing"]), Pop(L["Retake Tour"]))
 	  end },
 } })

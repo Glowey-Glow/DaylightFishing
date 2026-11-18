@@ -1,12 +1,18 @@
 # Daylight Fishing
 
+## 1.8.0
+- Controller support: the catch list, the trainer box, the tours and the welcome work with a controller (D-pad, A, B). Set Fishing Key takes a controller button as the key (Start cancels), and with the controller interface on, the D-pad, A and B work its Space and Clear buttons.
+- New, for controller players: Catch List Always On and Trainer Box Always On (For Controller Only, on the options page). While you fish they stay open beside the menu without taking the cursor, so casting and your buttons keep working; the game's UI focus button goes into them and B hands control back.
+- With the controller interface on, a catch list or trainer box left open closes when Fishing Mode ends, instead of taking the cursor later with nothing on screen.
+- Labels and buttons in Title Case, and "Daylight UI" written with a space.
+
 ## 1.7.1
 - Shift-clicking an item in the catch list puts its link in chat through the game's current call. The old one only exists while the game's deprecated-API addon is loaded, and without it the click raised a Lua error.
 
 ## 1.7.0
 - New: Weapon Swap on the fishing menu, at its right: the weapon or weapons that go back on when Fishing Mode ends. Hover one for the item. It shows while "Put my weapons back on" is on.
 - New: "Stay faded while moving" (on to start). Once the UI has faded, walking about keeps it faded; a fight, the chat box (with Keep the chat off) or Fishing Mode ending still bring it back. Off, the UI comes back as you move, as before.
-- While the UI is faded, Polestar's target button faces no longer stay on the screen (3D models ignore the fade), and DaylightUI's 3D portraits fade with the rest (the fade now goes through DaylightUI's own).
+- While the UI is faded, Polestar's target button faces no longer stay on the screen (3D models ignore the fade), and Daylight UI's 3D portraits fade with the rest (the fade now goes through Daylight UI's own).
 - While the UI is faded, passing the mouse over a window out of sight (Polestar's guide) no longer shows its tooltip. Tooltips of the bobber, mobs and your catch still show.
 
 ## 1.6.14
@@ -33,7 +39,7 @@
 - Translations: today's new text (Set Fishing Key, the fight message, the Mastercraft question and more) in German, French, Spanish, Russian, Korean and Simplified Chinese.
 
 ## 1.6.8
-- Its own icon: in the game's AddOns list and other menus (instead of the blank "?"), and on its page in DaylightUI's options. The Fishing Mode data text shows it too.
+- Its own icon: in the game's AddOns list and other menus (instead of the blank "?"), and on its page in Daylight UI's options. The Fishing Mode data text shows it too.
 
 ## 1.6.7
 - The fishing key can be any key you like: Set Fishing Key opens a small box, press the key you want (a mouse's middle or side button works too), or pick Space or Clear (no key: click the cast button). It replaces the short list of keys. Space is still the key to start, and a key you picked before is kept.
@@ -50,14 +56,14 @@
 
 ## 1.6.4
 - Fixes for non-English game clients: Krix in Powderfuse Port is found again (Riverglades is now looked up by its map number, not its English name), and the trainer box shows the places, the Expert Fishing book, the Artisan quest, Alliance and Horde, and the named fishing keys (Space, mouse buttons, Backspace) in the game's language. English clients see no change.
-- Window opacity: follows DaylightUI's by default, or set your own on the options page.
+- Window opacity: follows Daylight UI's by default, or set your own on the options page.
 - Daylight Fishing speaks German, French, Spanish, Russian, Korean and Simplified Chinese (machine drafts, corrections welcome).
 
 ## 1.6.3
 - New: getting into a fight while in Fishing Mode puts your saved weapons back on at once and ends Fishing Mode (with "Put my weapons back on" on, as it is to start).
 - Fix: taking the fishing pole off in a fight no longer causes a blocked-action error (SetCVar). Your sound and other settings go back once the fight ends.
-- Fix: "Keep the minimap" off now fades the minimap too. The game draws its dots at full strength whatever the UI's opacity, so the minimap now goes fully away once the UI has faded out, the way DaylightUI's AFK screen hides it.
-- Fix: "Keep the chat" on now keeps DaylightUI's chat on screen. It kept only the game's own chat windows, which DaylightUI hides, so the chat you see faded anyway.
+- Fix: "Keep the minimap" off now fades the minimap too. The game draws its dots at full strength whatever the UI's opacity, so the minimap now goes fully away once the UI has faded out, the way Daylight UI's AFK screen hides it.
+- Fix: "Keep the chat" on now keeps Daylight UI's chat on screen. It kept only the game's own chat windows, which Daylight UI hides, so the chat you see faded anyway.
 
 ## 1.6.2
 - All text in American English (gray, color and the like), in the game and in the docs.
@@ -76,7 +82,7 @@
 - A /reload in a fight with Fishing Mode on resumes it when the fight ends.
 - Sound settings are never lost if the game refuses a change in a fight; they are restored when it ends.
 - The fishing key no longer recasts when held through the hook.
-- The quiet screen hands everything back to DaylightUI's AFK screen cleanly.
+- The quiet screen hands everything back to Daylight UI's AFK screen cleanly.
 - "Fish Got Away" shows once per cast, and not when you jump or cast something else.
 - Bait buttons update after a fight.
 
@@ -85,11 +91,11 @@
 - New: a popup at the fishing menu's left after each cast, "Fish Caught!" with what came up, or "Fish Got Away".
 
 ## 1.3.1
-- Option to hide DaylightUI's fishing water while in Fishing Mode.
+- Option to hide Daylight UI's fishing water while in Fishing Mode.
 
 ## 1.3.0
-- New: the quiet screen. The UI fades while you stand and fish, like DaylightUI's soft AFK screen.
-- The slash command is now /dui fish (/dui fishing is DaylightUI's water preview).
+- New: the quiet screen. The UI fades while you stand and fish, like Daylight UI's soft AFK screen.
+- The slash command is now /dui fish (/dui fishing is Daylight UI's water preview).
 
 ## 1.2.0
 - Click the catch counter for a list of your catch, fish by fish.

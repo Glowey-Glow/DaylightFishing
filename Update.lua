@@ -1,7 +1,7 @@
 -- A newer version out? Each copy of this plugin tells the others in your guild and your group
 -- which version it is (an addon message, never seen in chat), at login and when you join a group.
 -- Hearing a newer one, it says so once a session in chat; hearing an older one, it answers with its
--- own a moment later, so the news gets round. "Tell me when a newer version is out" (on the
+-- own a moment later, so the news gets round. "Tell Me When a Newer Version Is Out" (on the
 -- plugin's first options page) turns it off: then nothing is sent or heard.
 -- The same file in each of the Daylight plugins; only PREFIX differs. A copy run from its source
 -- folder (its version still "@project-version@") stays quiet.
@@ -40,7 +40,7 @@ end
 -- The switch, for the plugin's first options page (its own saved variables: no default needed).
 function ns.UpdateGroup()
 	return { label = L["Updates"], items = {
-		{ type = "toggle", label = L["Tell me when a newer version is out"],
+		{ type = "toggle", label = L["Tell Me When a Newer Version Is Out"],
 		  desc = L["Your copy tells others in your guild and group which version it is, and you hear about a newer one (once a session). Off: nothing is sent or heard."],
 		  get = function() return On() end,
 		  set = function(v)

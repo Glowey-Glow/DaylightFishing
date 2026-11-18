@@ -51,6 +51,8 @@ local DEFAULTS = {
 	duiOpacity = true,
 	opacity = 0.85,
 	mastercraftFights = true,
+	padCatchList = false,
+	padTrainerBox = false,
 }
 
 -- Read once and kept until a setting of ours changes: the quiet screen asks several of them every
@@ -271,6 +273,9 @@ local channeling = false    -- a line is out
 local menu, cast, baitButtons = nil, nil, {}
 local weaponButtons = {}   -- the menu's Weapon Swap: the weapons Fishing Mode puts back on
 local UpdateBroker, UpdateMenu, UpdateCatch, RefreshPanel, UpdateSkill
+-- For Controller Only (below the trainer box): Sync(ending) opens or closes the sub menus Always
+-- On keeps open, Back(frame) is B on one.
+local SubMenus = {}
 
 local function UpdateBinding()
 	if InCombatLockdown() then return end
@@ -485,7 +490,7 @@ local function BuildMenu()
 		end
 	end)
 
-	me.RegisterMover(menu, "menu", L["Fishing menu"], { "CENTER", UIParent, "CENTER", 0, -190 })
+	me.RegisterMover(menu, "menu", L["Fishing Menu"], { "CENTER", UIParent, "CENTER", 0, -190 })
 
 	-- The bait left on the pole, every second while the menu shows.
 	local tick = 1
@@ -1097,6 +1102,7 @@ local function Enter(resuming)
 	BuildMenu()
 	ApplySettings()
 	ShowMenu(true)
+	SubMenus.Sync()
 	fader:Show()
 	UpdateBroker()
 	-- (The first time, on this account: the tour of the menu that just showed. Guide.lua)
@@ -1116,6 +1122,7 @@ local function Leave(reason)
 	KeepWater()
 	RestoreSettings()
 	ShowMenu(false)
+	SubMenus.Sync(true)
 	if reason == "combat" then
 		fightEnded = true
 		ShowNotice()
@@ -1342,6 +1349,8 @@ function RefreshPanel()
 		row:Show()
 	end
 	for i = shown + 1, #panel.rows do panel.rows[i]:Hide() end
+	-- (A controller: its cursor finds the rows just drawn. Guide.lua's Pad)
+	if ns.Pad then ns.Pad.Settle() end
 	local bottom = top - shown * ROW
 	if #list == 0 then
 		panel.empty:SetText(L["Nothing caught yet."])
@@ -1357,6 +1366,22 @@ function RefreshPanel()
 	panel.empty:ClearAllPoints()
 	panel.empty:SetPoint("TOPLEFT", panel, "TOPLEFT", PAD, top - shown * ROW - 2)
 	panel:SetSize(math.max(WIDTH, math.floor(menu:GetWidth() + 0.5)), -bottom + 38)
+	-- At the menu's right; at its left where the screen ends first, so it never slides over the
+	-- menu (it's clamped to the screen). It has the menu's scale: their sides compare as they are.
+	local right, left = menu:GetRight(), menu:GetLeft()
+	local screen = UIParent:GetRight()
+	local scale = menu:GetEffectiveScale()
+	panel.onLeft = false
+	if right and left and screen and scale and scale > 0 then
+		screen = screen * UIParent:GetEffectiveScale() / scale
+		panel.onLeft = right + 6 + panel:GetWidth() > screen and left - 6 - panel:GetWidth() >= 0
+	end
+	panel:ClearAllPoints()
+	if panel.onLeft then
+		panel:SetPoint("TOPRIGHT", menu, "TOPLEFT", -6, 0)
+	else
+		panel:SetPoint("TOPLEFT", menu, "TOPRIGHT", 6, 0)
+	end
 	SkinWindow(panel)
 end
 
@@ -1370,7 +1395,7 @@ local function BuildPanel()
 	panel.rows = {}
 	panel.title = API.Text(panel, "small", "LEFT")
 	panel.title:SetPoint("TOPLEFT", PAD, -8)
-	panel.title:SetText(L["Catch this session"])
+	panel.title:SetText(L["Catch This Session"])
 	panel.title:SetTextColor(API.Accent())
 	panel.total = API.Text(panel, "tiny", "LEFT")
 	panel.total:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -4)
@@ -1384,6 +1409,19 @@ local function BuildPanel()
 	panel.clear:SetFrameLevel(panel:GetFrameLevel() + 10)
 	panel.clear:SetScript("OnClick", function() Fishing.ResetCatch() end)
 	panel:SetScript("OnShow", RefreshPanel)
+	-- A controller (Guide.lua's Pad): the cursor moves over the catch (each fish's tooltip) and
+	-- Clear, starting on the first fish; A presses, B closes the list (kept open by Catch List
+	-- Always On, B only gives the cursor back to the game).
+	if ns.Pad then
+		panel.padFirst = function()
+			local first = panel.rows[1]
+			if first and first:IsShown() then return first end
+			return panel.clear
+		end
+		ns.Pad.Follow(panel, function()
+			if not SubMenus.Back(panel) then panel:Hide() end
+		end)
+	end
 end
 
 function Fishing.ToggleCatchPanel(show)
@@ -1788,6 +1826,7 @@ function RefreshBox()
 		row:Show()
 	end
 	for i = shown + 1, #box.rows do box.rows[i]:Hide() end
+	if ns.Pad then ns.Pad.Settle() end
 	local bottom = top - shown * (BOX_ROW + 4) + (shown > 0 and 4 or 6)
 	box.note:SetTextColor(TextColor("OFF"))
 	if GetTime() < pinnedUntil then
@@ -1807,6 +1846,22 @@ function RefreshBox()
 		bottom = bottom - 4 - math.ceil(box.note:GetStringHeight())
 	end
 	box:SetHeight(-bottom + 10)
+	-- Above the menu; under it where the screen's top is too close, so it never slides over the
+	-- menu (it's clamped to the screen). It has the menu's scale: their edges compare as they are.
+	local menuTop, menuLow = menu:GetTop(), menu:GetBottom()
+	local screen = UIParent:GetTop()
+	local scale = menu:GetEffectiveScale()
+	local under = false
+	if menuTop and menuLow and screen and scale and scale > 0 then
+		screen = screen * UIParent:GetEffectiveScale() / scale
+		under = menuTop + 6 + box:GetHeight() > screen and menuLow - 6 - box:GetHeight() >= 0
+	end
+	box:ClearAllPoints()
+	if under then
+		box:SetPoint("TOPLEFT", menu, "BOTTOMLEFT", 0, -6)
+	else
+		box:SetPoint("BOTTOMLEFT", menu, "TOPLEFT", 0, 6)
+	end
 	SkinWindow(box)
 end
 
@@ -1832,6 +1887,19 @@ local function BuildBox()
 	box.note = API.Text(box, "tiny", "LEFT")
 	box.note:SetTextColor(TextColor("OFF"))
 	box:SetScript("OnShow", RefreshBox)
+	-- A controller (Guide.lua's Pad): the cursor moves over the places, closest first; A sets the
+	-- waypoint, B closes the box (kept open by Trainer Box Always On, B only gives the cursor back
+	-- to the game).
+	if ns.Pad then
+		box.padFirst = function()
+			local first = box.rows[1]
+			if first and first:IsShown() then return first end
+			return nil
+		end
+		ns.Pad.Follow(box, function()
+			if not SubMenus.Back(box) then box:Hide() end
+		end)
+	end
 end
 
 function Fishing.ToggleTrainers(show)
@@ -1841,12 +1909,154 @@ function Fishing.ToggleTrainers(show)
 	box:SetShown(show)
 end
 
+-- ---------------------------------------------------------------------------------------------
+-- For Controller Only: the catch list and the trainer box always on
+-- The fishing menu never takes the controller cursor (a window that has it holds the D-pad and
+-- the face buttons, abilities included), so its sub menus only open with a mouse. With the game's
+-- controller interface on, "Catch List Always On" / "Trainer Box Always On" open them with
+-- Fishing Mode and keep them open until it ends. They never take the cursor as they show: they go
+-- on the game's list of open windows as windows that don't focus by themselves (the game's own
+-- way for popups nobody asked for), so the buttons keep fishing, and the player brings the cursor
+-- to them the way they reach any open window (the game's button for it, or LT / RT from another).
+-- B gives the cursor back to the game and leaves them open; another window closing never drops
+-- the cursor onto them. Every call to the game's list is checked and out of a fight only (Fishing
+-- Mode ends as a fight starts). Nothing runs while nothing changes.
+-- ---------------------------------------------------------------------------------------------
+
+do
+	local KEEP = { { key = "padCatchList" }, { key = "padTrainerBox" } }
+	local kept = setmetatable({}, { __mode = "k" })     -- frame -> held open by Always On
+	local listed = setmetatable({}, { __mode = "k" })   -- frame -> put on the game's list by us
+	local prepared = setmetatable({}, { __mode = "k" })
+
+	local function PadOn() return ns.Pad ~= nil and ns.Pad.On() end
+	-- The options' switches, grayed while the controller interface is off (read as the page is drawn).
+	function SubMenus.PadOff() return not PadOn() end
+
+	-- The game's list of open windows (GamepadMode.FrameControlsManager), when it's there.
+	local function Manager()
+		local G = _G.GamepadMode
+		local m = type(G) == "table" and G.FrameControlsManager or nil
+		if type(m) == "table" and type(m.FrameShown) == "function" and type(m.FrameHidden) == "function" then return m end
+		return nil
+	end
+
+	-- Daylight UI's controller kit (Leaving / Returning keep its own note of the list right), checked.
+	local function Kit(name, frame)
+		local P = DUI and DUI.Pad
+		local fn = type(P) == "table" and P[name] or nil
+		if type(fn) == "function" then pcall(fn, frame) end
+	end
+
+	-- On the game's list without the cursor: a popup that doesn't focus by itself. (Daylight UI's own
+	-- announcement comes a frame later and finds it listed already.) Leaving it, it hands the cursor
+	-- back to the game.
+	local function ListQuietly(f)
+		if not kept[f] or InCombatLockdown() or not f:IsVisible() or not PadOn() then return end
+		local m = Manager()
+		if not m then return end
+		f.skipGamepadAutoFocus = true
+		f.returnToPlayerControl = true
+		if pcall(m.FrameShown, m, f, true, false) then listed[f] = true end
+	end
+
+	-- The cursor back to the game, the window still open and still reachable.
+	local function GiveBack(f)
+		if InCombatLockdown() then return end
+		local m = Manager()
+		if not m then return end
+		f.returnToPlayerControl = true
+		Kit("Leaving", f)
+		pcall(m.FrameHidden, m, f)   -- (nothing when Daylight UI took it off already)
+		ListQuietly(f)
+		Kit("Returning", f)
+	end
+
+	-- B on a kept sub menu: true when it was one (the cursor goes back to the game, it stays open).
+	function SubMenus.Back(f)
+		if not kept[f] then return false end
+		GiveBack(f)
+		return true
+	end
+
+	-- (Another window closing can hand the game's cursor to one of these: B gives it back. Not hooked
+	-- on the game's window manager: no hooksecurefunc on the game's objects on this client, it breaks
+	-- the game's own protected calls, as Daylight UI's CONTRIBUTING says.)
+
+	local function Prepare(f)
+		if prepared[f] then return end
+		prepared[f] = true
+		-- Shown again (with the menu): on the list without the cursor, before Daylight UI's turn.
+		f:HookScript("OnShow", function(self) if kept[self] then ListQuietly(self) end end)
+		f:HookScript("OnHide", function(self)
+			if not listed[self] then return end
+			listed[self] = nil
+			if not InCombatLockdown() then
+				local m = Manager()
+				if m then pcall(m.FrameHidden, m, self) end
+			end
+		end)
+		-- The cursor coming to it: leaving it later goes back to the game (the game clears that as the
+		-- triggers step away).
+		local focus = f.FocusGamepad
+		if type(focus) == "function" then
+			f.FocusGamepad = function(self, ...)
+				if kept[self] then
+					self.returnToPlayerControl = true
+				end
+				return focus(self, ...)
+			end
+		end
+	end
+
+	local function Let(f)
+		-- (Closed with the cursor in it, the cursor goes back to the game.)
+		if kept[f] then f.returnToPlayerControl = true end
+		kept[f] = nil
+		if f:IsShown() then f:Hide() end
+		f.skipGamepadAutoFocus, f.returnToPlayerControl = nil, nil
+	end
+
+	-- ending: Fishing Mode just ended. On a controller every sub menu closes with it then: one left
+	-- open, hidden with the menu, would be put back on the game's list after the fight that ended it
+	-- and take the cursor while nothing shows.
+	function SubMenus.Sync(ending)
+		local pad = PadOn()
+		local on = active and pad and menu ~= nil and menu:IsShown() and not InCombatLockdown()
+		KEEP[1].frame, KEEP[2].frame = panel, box
+		for i, k in ipairs(KEEP) do
+			local f = k.frame
+			if on and Get(k.key) == true then
+				if i == 1 then BuildPanel(); f = panel else BuildBox(); f = box end
+				if f and not kept[f] then
+					Prepare(f)
+					kept[f] = true
+					if f:IsShown() then GiveBack(f) else f:Show() end
+				end
+			elseif f and (kept[f] or (ending and pad)) then
+				Let(f)
+			end
+		end
+	end
+
+	-- The game's controller interface turned on or off (after Daylight UI's own handling of it), and
+	-- once after a login or /reload (Fishing Mode back on before the game's controller code is ready).
+	local padWatch = CreateFrame("Frame")
+	padWatch:SetScript("OnEvent", function(_, event, name)
+		if event == "CVAR_UPDATE" and name ~= "GamePadEnable" then return end
+		C_Timer.After(event == "PLAYER_ENTERING_WORLD" and 1 or 0, function() SubMenus.Sync() end)
+	end)
+	for _, e in ipairs({ "INPUT_DEVICE_INTERFACE_TRANSITION", "CVAR_UPDATE", "PLAYER_ENTERING_WORLD" }) do
+		pcall(padWatch.RegisterEvent, padWatch, e)
+	end
+end
+
 -- The catch's lines on a tooltip: the count, then what came up, the most first.
 function Fishing.CatchTooltip(tip, title)
 	local s = char and Session()
 	local n = s and s.caught or 0
-	if title then tip:SetText(L["This session's catch"]) end
-	tip:AddDoubleLine(L["Fish caught"], tostring(n), 1, 1, 1, API.Accent())
+	if title then tip:SetText(L["This Session's Catch"]) end
+	tip:AddDoubleLine(L["Fish Caught"], tostring(n), 1, 1, 1, API.Accent())
 	if n == 0 then
 		tip:AddLine(L["Nothing caught yet."], TextColor("OFF"))
 		return
@@ -1945,7 +2155,10 @@ local function ShowPopup(caught, items)
 	popup:SetSize(POPUP_W, 34 + shown * POPUP_ROW + (shown > 0 and 6 or 0))
 	popup:SetScale(Get("menuScale") or 1)
 	popup:ClearAllPoints()
-	if menu and menu:IsShown() then
+	if panel and panel:IsVisible() and panel.onLeft then
+		-- (The catch list took the menu's left: the note goes beside it.)
+		popup:SetPoint("TOPRIGHT", panel, "TOPLEFT", -6, 0)
+	elseif menu and menu:IsShown() then
 		popup:SetPoint("TOPRIGHT", menu, "TOPLEFT", -6, 0)
 	else
 		popup:SetPoint("CENTER", UIParent, "CENTER", -240, -190)
@@ -2033,11 +2246,11 @@ if LDB then
 			Fishing.Toggle()
 		end,
 		OnTooltipShow = function(tip)
-			tip:AddLine(active and L["Fishing Mode: on"] or L["Fishing Mode: off"])
+			tip:AddLine(active and L["Fishing Mode: On"] or L["Fishing Mode: Off"])
 			local key = KeyText()
-			if key then tip:AddLine(L["Fishing key: %s"]:format(key), 1, 1, 1) end
+			if key then tip:AddLine(L["Fishing Key: %s"]:format(key), 1, 1, 1) end
 			local left = BaitLeft()
-			if active and left then tip:AddLine(string.format(L["Bait on the pole: %d:%02d"], left / 60, left % 60), 1, 1, 1) end
+			if active and left then tip:AddLine(string.format(L["Bait on the Pole: %d:%02d"], left / 60, left % 60), 1, 1, 1) end
 			tip:AddLine(" ")
 			Fishing.CatchTooltip(tip)
 			tip:AddLine(active and L["Click: turn Fishing Mode off"] or L["Click: turn Fishing Mode on"], 0.8, 0.8, 0.8)
@@ -2146,7 +2359,7 @@ local function AskMastercraft()
 	end
 	db.mastercraftAsked = true
 	StaticPopupDialogs.DAYLIGHTFISHING_MASTERCRAFT = {
-		text = L["Mastercraft puts your fishing pole back on after every fight, and Daylight Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nDaylight Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights while fishing."],
+		text = L["Mastercraft puts your fishing pole back on after every fight, and Daylight Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nDaylight Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights While Fishing."],
 		button1 = L["Daylight Fishing"],
 		button2 = L["Mastercraft"],
 		OnAccept = function() DUI:Set(ADDON, "mastercraftFights", true) end,
@@ -2354,6 +2567,12 @@ Fishing.SetKey = (function()
 			end
 		end
 		kb.lead:SetText(lead)
+		-- (The controller interface on: its D-pad, A and B work the box, so they can't be the key.)
+		local help = L["Press the key you want, or click here with the mouse's middle or a side button. Escape cancels."]
+		if ns.Pad and ns.Pad.On() then
+			help = help .. "\n" .. L["Controller: the D-pad and the select and back buttons work this box. Any other button becomes the fishing key."]
+		end
+		kb.help:SetText(help)
 		kb.now:ClearAllPoints()
 		if lead ~= "" then
 			kb.now:SetPoint("TOPLEFT", kb.lead, "BOTTOMLEFT", 0, -8)
@@ -2384,10 +2603,15 @@ Fishing.SetKey = (function()
 			-- Takes every key while it's open (Escape included), so none of them does anything else.
 			kb:EnableKeyboard(true)
 			kb:SetPropagateKeyboardInput(false)
+			-- A controller's buttons too (the game's own key picker takes them the same way).
+			if kb.EnableGamePadButton then kb:EnableGamePadButton(true) end
 			kb:Show()
 		elseif kb and kb:IsShown() then
 			kb:Hide()
-			if not InCombatLockdown() then kb:EnableKeyboard(false) end
+			if not InCombatLockdown() then
+				kb:EnableKeyboard(false)
+				if kb.EnableGamePadButton then kb:EnableGamePadButton(false) end
+			end
 		end
 	end
 
@@ -2425,7 +2649,7 @@ Fishing.SetKey = (function()
 		kb:EnableMouse(true)
 		local head = API.Text(kb, "head", "LEFT")
 		head:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -12)
-		head:SetText(L["Fishing key"])
+		head:SetText(L["Fishing Key"])
 		BoxInk(head, "TITLE")
 		kb.lead = API.Text(kb, "body", "LEFT")
 		kb.lead:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -40)
@@ -2435,7 +2659,6 @@ Fishing.SetKey = (function()
 		BoxInk(kb.now, "VALUE")
 		kb.help = API.Text(kb, "small", "LEFT")
 		kb.help:SetPoint("TOPLEFT", kb.now, "BOTTOMLEFT", 0, -6)
-		kb.help:SetText(L["Press the key you want, or click here with the mouse's middle or a side button. Escape cancels."])
 		BoxInk(kb.help, "TEXT")
 		kb.msg = API.Text(kb, "small", "LEFT")
 		kb.msg:SetPoint("TOPLEFT", kb.help, "BOTTOMLEFT", 0, -6)
@@ -2453,6 +2676,25 @@ Fishing.SetKey = (function()
 		kb:SetScript("OnKeyDown", function(_, key)
 			if key == "ESCAPE" then ShowKeyBox(false) else TakeKey(key) end
 		end)
+		-- A controller button is taken as the key; the one that opens the game menu (Start, by
+		-- default) closes the box, as Escape does.
+		-- With the controller interface on, the D-pad, A and B go on to the game's cursor, which
+		-- works the box (Clear, Space; B closes it: Guide.lua's Pad): true lets a press through.
+		local NAV = {}
+		for name, fallback in pairs({ GAMEPAD_DPAD_TOP = "PADDUP", GAMEPAD_DPAD_BOTTOM = "PADDDOWN",
+			GAMEPAD_DPAD_LEFT = "PADDLEFT", GAMEPAD_DPAD_RIGHT = "PADDRIGHT",
+			GAMEPAD_FACE_BOTTOM = "PAD1", GAMEPAD_FACE_RIGHT = "PAD2" }) do
+			local k = _G[name]
+			NAV[type(k) == "string" and k or fallback] = true
+		end
+		kb:SetScript("OnGamePadButtonDown", function(_, key)
+			if NAV[key] and ns.Pad and ns.Pad.On() then return true end
+			if GetBindingAction and GetBindingAction(key) == "TOGGLEGAMEMENU" then ShowKeyBox(false) else TakeKey(key) end
+		end)
+		if ns.Pad then
+			kb.padFirst = function() return kb.space end
+			ns.Pad.Follow(kb, function() ShowKeyBox(false) end)
+		end
 		kb:SetScript("OnMouseDown", function(_, which)
 			if BOX_MOUSE[which] then TakeKey(BOX_MOUSE[which]) end
 		end)
@@ -2513,76 +2755,84 @@ local pages = {
 	  desc = L["Fishing Mode: put \"Fishing Mode\" in a data text slot (Info Panel, Data texts) and click it, or type /dui fish."],
 	  groups = {
 		{ label = L["Fishing Mode"], items = {
-			{ type = "button", label = L["Turn Fishing Mode on or off"], func = function() Fishing.Toggle() end },
-			{ type = "button", label = L["Make a Fishing Mode macro"], func = function() Fishing.MakeMacro() end,
+			{ type = "button", label = L["Turn Fishing Mode On or Off"], func = function() Fishing.Toggle() end },
+			{ type = "button", label = L["Make a Fishing Mode Macro"], func = function() Fishing.MakeMacro() end,
 			  desc = L["A \"Fishing Mode\" macro with the Fishing icon that turns Fishing Mode on and off. It goes on your cursor: drop it on an action bar."] },
-			{ type = "toggle", key = "autoMode", label = L["Turn on when I equip a pole"],
+			{ type = "toggle", key = "autoMode", label = L["Turn On When I Equip a Pole"],
 			  desc = L["Putting a fishing pole on turns Fishing Mode on, and taking it off turns it off."] },
 			{ type = "button", label = L["Set Fishing Key"], func = function() Fishing.SetKey() end,
 			  desc = L["Opens a small box: press any key you want (a mouse's middle or side button works too). Space by default. While Fishing Mode is on, this key casts, and hooks the fish once your bobber is out. It is yours again when Fishing Mode ends, or a fight starts."] },
-			{ type = "button", label = L["Clear this session's catch"], func = function() Fishing.ResetCatch() end },
-			{ type = "toggle", key = "equipPole", label = L["Put my fishing pole on"],
+			{ type = "button", label = L["Clear This Session's Catch"], func = function() Fishing.ResetCatch() end },
+			{ type = "toggle", key = "equipPole", label = L["Put My Fishing Pole On"],
 			  desc = L["Fishing Mode puts on the best fishing pole in your bags."] },
-			{ type = "toggle", key = "restoreWeapons", label = L["Put my weapons back on"],
+			{ type = "toggle", key = "restoreWeapons", label = L["Put My Weapons Back On"],
 			  desc = L["When you turn Fishing Mode off or get into a fight, the weapons you held go back on."] },
 		} },
-		{ label = L["Fights while fishing"], items = {
-			{ type = "toggle", key = "mastercraftFights", label = L["Daylight Fishing handles fights"],
+		{ label = L["Fights While Fishing"], items = {
+			{ type = "toggle", key = "mastercraftFights", label = L["Daylight Fishing Handles Fights"],
 			  desc = L["With Mastercraft loaded: on, its \"After the fight: your fishing gear back on\" is off, so your pole stays off after a fight. Off gives Mastercraft its own setting back."] },
 		} },
-		{ label = L["Fishing menu"], items = {
-			{ type = "toggle", key = "showMenu", label = L["Show the fishing menu"],
+		{ label = L["Fishing Menu"], items = {
+			{ type = "toggle", key = "showMenu", label = L["Show the Fishing Menu"],
 			  desc = L["Your baits and the cast button under your character. Move it with /dui unlock."] },
-			{ type = "slider", key = "menuScale", label = L["Menu size"], min = 0.7, max = 1.6, step = 0.05, unit = "%",
+			{ type = "slider", key = "menuScale", label = L["Menu Size"], min = 0.7, max = 1.6, step = 0.05, unit = "%",
 			  desc = L["How big the fishing menu is."] },
 		} },
+		{ label = L["For Controller Only"], desc = L["Only with the game's controller interface on."], items = {
+			{ type = "toggle", key = "padCatchList", label = L["Catch List Always On"],
+			  desc = L["The catch list opens with Fishing Mode and stays open until it ends."] .. " " .. L["It never takes the controller cursor, so your buttons keep fishing: bring the cursor to it as to any open window, and B gives it back to the game."],
+			  disabled = SubMenus.PadOff },
+			{ type = "toggle", key = "padTrainerBox", label = L["Trainer Box Always On"],
+			  desc = L["The trainer box (where to learn your next Fishing rank) opens with Fishing Mode and stays open until it ends."] .. " " .. L["It never takes the controller cursor, so your buttons keep fishing: bring the cursor to it as to any open window, and B gives it back to the game."],
+			  disabled = SubMenus.PadOff },
+		} },
 		{ label = L["Look"], items = {
-			{ type = "toggle", key = "duiOpacity", label = L["Use DaylightUI's opacity"],
-			  desc = L["The fishing menu and its boxes follow DaylightUI's window opacity."] },
-			{ type = "slider", key = "opacity", label = L["Window opacity"], min = 0.1, max = 1, step = 0.05, unit = "%",
-			  desc = L["How solid their backgrounds are, with DaylightUI's opacity off."],
+			{ type = "toggle", key = "duiOpacity", label = L["Use Daylight UI's Opacity"],
+			  desc = L["The fishing menu and its boxes follow Daylight UI's window opacity."] },
+			{ type = "slider", key = "opacity", label = L["Window Opacity"], min = 0.1, max = 1, step = 0.05, unit = "%",
+			  desc = L["How solid their backgrounds are, with Daylight UI's opacity off."],
 			  disabled = function(get) return get("duiOpacity") ~= false end },
 		} },
-		{ label = L["Quiet screen"], items = {
-			{ type = "toggle", key = "fadeUI", label = L["Fade the UI while fishing"],
-			  desc = L["Like DaylightUI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."]
+		{ label = L["Quiet Screen"], items = {
+			{ type = "toggle", key = "fadeUI", label = L["Fade the UI While Fishing"],
+			  desc = L["Like Daylight UI's soft AFK screen: the rest of the UI fades away while you stand and fish, and only the fishing menu stays. It comes back while you chat, loot by hand or fight, and when Fishing Mode ends."]
 				.. " " .. L["With Mastercraft loaded, its \"Hide the game's interface\" stays on Never while this is on; turning this off gives it back."] },
-			{ type = "slider", key = "fadeAlpha", label = L["Faded UI opacity"], min = 0, max = 0.6, step = 0.05, unit = "%",
+			{ type = "slider", key = "fadeAlpha", label = L["Faded UI Opacity"], min = 0, max = 0.6, step = 0.05, unit = "%",
 			  desc = L["How much of the UI still shows while faded. 0 hides it."],
 			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "slider", key = "fadeDelay", label = L["Fade after standing still"], min = 0, max = 10, step = 0.5, unit = "s",
+			{ type = "slider", key = "fadeDelay", label = L["Fade After Standing Still"], min = 0, max = 10, step = 0.5, unit = "s",
 			  desc = L["Seconds of standing still before the UI fades."],
 			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "fadeMoving", label = L["Stay faded while moving"],
+			{ type = "toggle", key = "fadeMoving", label = L["Stay Faded While Moving"],
 			  desc = L["Walking about while you fish keeps the UI faded. Off: it comes back as you move."],
 			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "keepMinimap", label = L["Keep the minimap"],
+			{ type = "toggle", key = "keepMinimap", label = L["Keep the Minimap"],
 			  desc = L["The minimap stays while the rest of the UI fades."],
 			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "keepChat", label = L["Keep the chat"],
+			{ type = "toggle", key = "keepChat", label = L["Keep the Chat"],
 			  desc = L["Your chat windows, their tabs and the chat box stay while the rest of the UI fades."],
 			  disabled = function(get) return get("fadeUI") == false end },
-			{ type = "toggle", key = "catchPopup", label = L["Catch popup"],
+			{ type = "toggle", key = "catchPopup", label = L["Catch Popup"],
 			  desc = L["A note at the fishing menu's left after each cast: \"Fish Caught!\" with what came up, or \"Fish Got Away\"."] },
-			{ type = "toggle", key = "hideWater", label = L["Hide DaylightUI's fishing water"],
-			  desc = L["The water and bobber DaylightUI draws along the bottom of the screen while your line is in. Hidden while Fishing Mode is on, and back as it was when it ends. DaylightUI's own switch for it stays in Quality of Life."] },
+			{ type = "toggle", key = "hideWater", label = L["Hide Daylight UI's Fishing Water"],
+			  desc = L["The water and bobber Daylight UI draws along the bottom of the screen while your line is in. Hidden while Fishing Mode is on, and back as it was when it ends. Daylight UI's own switch for it stays in Quality of Life."] },
 		} },
-		{ label = L["Sound while fishing"], items = {
-			{ type = "toggle", key = "sound", label = L["Set the sound for fishing"],
+		{ label = L["Sound While Fishing"], items = {
+			{ type = "toggle", key = "sound", label = L["Set the Sound for Fishing"],
 			  desc = L["Sound effects up so you hear the splash, music and ambience down. Your own sound settings come back when Fishing Mode ends."] },
-			{ type = "slider", key = "sfxVolume", label = L["Effects volume"], min = 0, max = 1, step = 0.05, unit = "%",
+			{ type = "slider", key = "sfxVolume", label = L["Effects Volume"], min = 0, max = 1, step = 0.05, unit = "%",
 			  desc = L["The splash of a bite is an effect."], disabled = NotSound },
-			{ type = "slider", key = "musicVolume", label = L["Music volume"], min = 0, max = 1, step = 0.05, unit = "%",
+			{ type = "slider", key = "musicVolume", label = L["Music Volume"], min = 0, max = 1, step = 0.05, unit = "%",
 			  disabled = NotSound },
-			{ type = "slider", key = "ambienceVolume", label = L["Ambience volume"], min = 0, max = 1, step = 0.05, unit = "%",
+			{ type = "slider", key = "ambienceVolume", label = L["Ambience Volume"], min = 0, max = 1, step = 0.05, unit = "%",
 			  disabled = NotSound },
-			{ type = "toggle", key = "backgroundSound", label = L["Sound when the game is in the background"],
+			{ type = "toggle", key = "backgroundSound", label = L["Sound When the Game Is in the Background"],
 			  desc = L["Hear a bite while you are in another window."], disabled = NotSound },
 		} },
-		{ label = L["While fishing"], items = {
-			{ type = "toggle", key = "softInteract", label = L["Soft interact"],
+		{ label = L["While Fishing"], items = {
+			{ type = "toggle", key = "softInteract", label = L["Soft Interact"],
 			  desc = L["Lets the fishing key hook the bobber without clicking it. Set back when Fishing Mode ends."] },
-			{ type = "toggle", key = "autoLoot", label = L["Auto loot"],
+			{ type = "toggle", key = "autoLoot", label = L["Auto Loot"],
 			  desc = L["Your catch goes straight into your bags. Set back when Fishing Mode ends."] },
 		} },
 	  } },
@@ -2620,6 +2870,9 @@ me.On("SettingChanged", function(scope, path)
 		UpdateMapAway()
 	elseif path == "showMenu" or path == "menuScale" then
 		ShowMenu(true)
+		SubMenus.Sync()
+	elseif path == "padCatchList" or path == "padTrainerBox" then
+		SubMenus.Sync()
 	elseif path == "sound" or path == "sfxVolume" or path == "musicVolume" or path == "ambienceVolume"
 		or path == "backgroundSound" or path == "softInteract" or path == "autoLoot" then
 		OutOfCombat(function() if active then ApplySettings() end end)
