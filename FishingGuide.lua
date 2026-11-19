@@ -1,4 +1,4 @@
--- Daylight Fishing's welcome, what's new and tour (the engine: Guide.lua). Loaded before Core.lua,
+-- Glowey's Fishing's welcome, what's new and tour (the engine: Guide.lua). Loaded before Core.lua,
 -- so its options can show the Help card; everything of Core.lua's is looked up when it's needed,
 -- through the DaylightFishing table.
 -- luacheck: read globals C_AddOns UnitChannelInfo
@@ -50,7 +50,7 @@ local NEWS = {
 
 -- (Kept on ns: Core.lua reads wasExisting, which the guide sets on it, for its first-start key pick.)
 ns.GuideSpec = {
-	name = "Daylight Fishing",
+	name = "Glowey's Fishing",
 	db = function() return _G.DaylightFishingDB end,
 	-- (A player from before the guide: anything saved besides the guide's own.)
 	existing = function()
@@ -61,7 +61,7 @@ ns.GuideSpec = {
 		end
 		return false
 	end,
-	intro = L["Fishing Mode puts your pole on, sets the sound for fishing and gives you one key to cast and hook. Turn it on from the Daylight Fishing data text or /dui fish."],
+	intro = L["Fishing Mode puts your pole on, sets the sound for fishing and gives you one key to cast and hook. Turn it on from the Glowey's Fishing data text or /dui fish."],
 	takes = function()
 		local list = {
 			L["Your weapons, while Fishing Mode is on: your best fishing pole goes on, and your weapons come back when it ends."],
@@ -100,7 +100,7 @@ Guide.AddTour("fishing", {
 		if Active() then
 			return string.format(L["This is Fishing Mode: your pole is in hand and the sound is set for fishing. Turn it off with the X, the data text or %s, and your weapons go back on."], Pop("/dui fish"))
 		end
-		return string.format(L["Turn Fishing Mode on from the Daylight Fishing data text, %s or the Fishing Mode macro: your pole goes on and this menu shows under your character."], Pop("/dui fish"))
+		return string.format(L["Turn Fishing Mode on from the Glowey's Fishing data text, %s or the Fishing Mode macro: your pole goes on and this menu shows under your character."], Pop("/dui fish"))
 	  end,
 	  part = function() local menu = Parts() return menu end },
 	{ title = L["Baits"],

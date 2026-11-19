@@ -1,4 +1,7 @@
-# Daylight Fishing
+# Glowey's Fishing (DaylightUI Plugin)
+
+## 1.8.1
+- Daylight Fishing is now Glowey's Fishing (DaylightUI Plugin), so it's clear it's a plugin and not part of Daylight UI. Inside Daylight UI the section is Glowey's Fishing. Your settings and your Fishing Mode data text are kept.
 
 ## 1.8.0
 - Controller support: the catch list, the trainer box, the tours and the welcome work with a controller (D-pad, A, B). Set Fishing Key takes a controller button as the key (Start cancels), and with the controller interface on, the D-pad, A and B work its Space and Clear buttons.

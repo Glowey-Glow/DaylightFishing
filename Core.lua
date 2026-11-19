@@ -1,4 +1,4 @@
--- Daylight Fishing: a DaylightUI plugin.
+-- Glowey's Fishing: a DaylightUI plugin.
 -- Fishing Mode, turned on and off from a data text (any DaylightUI data text slot, or any other
 -- broker display) or /dui fish:
 --   on:  your best fishing pole goes on (what you held is remembered), the sound is set for
@@ -81,7 +81,7 @@ end)
 local db, char     -- DaylightFishingDB (account), and this character's part of it
 
 local function Print(msg)
-	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffDaylight Fishing|r: " .. msg)
+	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffGlowey's Fishing|r: " .. msg)
 end
 
 -- Our menu and boxes in DaylightUI's window shell. The background follows DaylightUI's window
@@ -1696,7 +1696,7 @@ local function Waypoint(name, spot)
 	end
 	local tomtom = _G.TomTom
 	if type(tomtom) == "table" and type(tomtom.AddWaypoint) == "function" then
-		pcall(tomtom.AddWaypoint, tomtom, map, spot.x / 100, spot.y / 100, { title = name, from = "Daylight Fishing" })
+		pcall(tomtom.AddWaypoint, tomtom, map, spot.x / 100, spot.y / 100, { title = name, from = "Glowey's Fishing" })
 	elseif C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
 		if C_Map.CanSetUserWaypointOnMap and not C_Map.CanSetUserWaypointOnMap(map) then
 			Print(L["%s. The map there takes no pins."]:format(where))
@@ -2230,6 +2230,7 @@ function UpdateBroker()
 end
 
 if LDB then
+	-- (Its broker name is still the old one: Daylight UI saves data text slots by it.)
 	broker = LDB:NewDataObject("Daylight Fishing", {
 		type = "data source",
 		label = L["Fishing Mode"],
@@ -2359,8 +2360,8 @@ local function AskMastercraft()
 	end
 	db.mastercraftAsked = true
 	StaticPopupDialogs.DAYLIGHTFISHING_MASTERCRAFT = {
-		text = L["Mastercraft puts your fishing pole back on after every fight, and Daylight Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nDaylight Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights While Fishing."],
-		button1 = L["Daylight Fishing"],
+		text = L["Mastercraft puts your fishing pole back on after every fight, and Glowey's Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nGlowey's Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights While Fishing."],
+		button1 = L["Glowey's Fishing"],
 		button2 = L["Mastercraft"],
 		OnAccept = function() DUI:Set(ADDON, "mastercraftFights", true) end,
 		OnCancel = function(_, _, reason)
@@ -2522,7 +2523,7 @@ end)
 -- ---------------------------------------------------------------------------------------------
 
 -- The fishing key: set in a small box that takes the next key or mouse button pressed (out of a
--- fight), the way Daylight Essentials' Halo sets its key. Space by default; Clear leaves no key (the
+-- fight), the way Glowey's Essentials' Halo sets its key. Space by default; Clear leaves no key (the
 -- cast button is clicked instead). Shift, Alt and Ctrl alone can't be it, and neither can Escape
 -- (it closes the box) or the left and right mouse buttons (they're for the box itself).
 -- (All of it inside one function: Core.lua is near Lua's limit of 200 locals in a file's main
@@ -2769,7 +2770,7 @@ local pages = {
 			  desc = L["When you turn Fishing Mode off or get into a fight, the weapons you held go back on."] },
 		} },
 		{ label = L["Fights While Fishing"], items = {
-			{ type = "toggle", key = "mastercraftFights", label = L["Daylight Fishing Handles Fights"],
+			{ type = "toggle", key = "mastercraftFights", label = L["Glowey's Fishing Handles Fights"],
 			  desc = L["With Mastercraft loaded: on, its \"After the fight: your fishing gear back on\" is off, so your pole stays off after a fight. Off gives Mastercraft its own setting back."] },
 		} },
 		{ label = L["Fishing Menu"], items = {
@@ -2845,6 +2846,7 @@ if ns.Guide and ns.Guide.HelpGroup and pages[1] then table.insert(pages[1].group
 
 pcall(function()
 	DUI:RegisterPlugin(ADDON, {
+		title = "Glowey's Fishing",
 		icon = "Interface\\AddOns\\" .. ADDON .. "\\Media\\icon-glyph.png",
 		needs = { 1, 1 },
 		short = L["Fishing"],

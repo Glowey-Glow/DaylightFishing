@@ -1,7 +1,7 @@
 ## Interface: 16001
-## Title: Daylight |cffa335eeFishing|r
+## Title: Glowey's |cffa335eeFishing|r (DaylightUI Plugin)
 ## IconTexture: Interface\AddOns\DaylightFishing\Media\icon.png
-## Notes: A Daylight UI plugin: Fishing Mode from a data text button. Equips your pole, sets the sound up for fishing, and puts your bait and a one-button cast under your character.
+## Notes: A plugin for Daylight UI: Fishing Mode from a data text button. Equips your pole, sets the sound up for fishing, and puts your bait and a one-button cast under your character.
 ## Author: Glowey
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1799572

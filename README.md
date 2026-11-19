@@ -1,4 +1,4 @@
-# Daylight Fishing
+# Glowey's Fishing
 
 A plugin for Daylight UI on WoW: Forever that sets you up for fishing with one click: Fishing Mode.
 
