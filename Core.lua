@@ -749,15 +749,22 @@ local function TipFromFaded()
 end
 GameTooltip:HookScript("OnShow", TipFromFaded)
 
+-- UIParent's alpha, DaylightUI's way, so its portraits fade with the rest; else UIParent's own.
+-- DaylightUI 1.9.5+ keeps one alpha per owner (its AFK screen "afk", its NPC scene "npc") and
+-- shows the lowest, so ours is "fishing" and only we let it go (1); older ones take one alpha
+-- and ignore the owner.
+function ns.UIAlpha(a)
+	local F = DUI and DUI.Fade
+	if not (type(F) == "table" and type(F.SetUIAlpha) == "function" and pcall(F.SetUIAlpha, a, "fishing")) then
+		UIParent:SetAlpha(a)
+	end
+end
+
 local function SetFade(p)
 	fade = p
 	local low = tonumber(Get("fadeAlpha")) or 0
 	local a = 1 - p * (1 - low)
-	-- (DaylightUI's way, so its portraits fade with the rest; else UIParent's own alpha.)
-	local F = DUI and DUI.Fade
-	if not (type(F) == "table" and type(F.SetUIAlpha) == "function" and pcall(F.SetUIAlpha, a)) then
-		UIParent:SetAlpha(a)
-	end
+	ns.UIAlpha(a)
 	if p > 0 and not liftedOn then
 		LiftAll()
 	elseif p <= 0 and liftedOn then
@@ -827,7 +834,14 @@ fader:SetScript("OnUpdate", function(_, elapsed)
 		ReleaseModels()
 		fade, stillSince = 0, nil
 		MapAway(false)
+		fader.afkHeld = true
 		return
+	end
+	-- Once it's gone our own fade is let go too: on DaylightUI 1.9.5+ it's kept apart from the
+	-- AFK screen's and would hold the UI faded after the AFK screen gave its own back.
+	if fader.afkHeld then
+		fader.afkHeld = nil
+		ns.UIAlpha(1)
 	end
 	if liftedOn then
 		relift = relift + elapsed

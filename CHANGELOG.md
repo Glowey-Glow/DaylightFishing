@@ -1,5 +1,8 @@
 # Glowey's Fishing (DaylightUI Plugin)
 
+## 1.8.2
+- Fixed with Daylight UI 1.9.5: after Daylight UI's AFK screen closed, the UI could stay faded or invisible if Fishing Mode had faded it. Fishing's fade is now kept apart from the AFK screen's and the NPC scene's, and let go when the AFK screen ends.
+
 ## 1.8.1
 - Daylight Fishing is now Glowey's Fishing (DaylightUI Plugin), so it's clear it's a plugin and not part of Daylight UI. Inside Daylight UI the section is Glowey's Fishing. Your settings and your Fishing Mode data text are kept.
 

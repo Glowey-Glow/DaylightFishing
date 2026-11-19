@@ -26,6 +26,9 @@ Everything goes back as it was when Fishing Mode ends.
 
 ---
 
+## New in 1.8.2
+- **Fixed with Daylight UI 1.9.5:** the UI no longer stays faded after Daylight UI's AFK screen closes while Fishing Mode had it faded.
+
 ## New in 1.8.0
 - **Controller support:** the catch list, trainer box, tours and Set Fishing Key work with a controller.
 - **For controller players:** Catch List Always On and Trainer Box Always On keep them open while you fish, without taking the cursor.
