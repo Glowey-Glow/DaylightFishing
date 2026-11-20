@@ -8,7 +8,7 @@ A plugin for Daylight UI, by Glowey (not part of Daylight UI itself: report its 
 
 ## Turn on Fishing Mode
 - click the **Fishing Mode** data text on your Daylight UI data bars;
-- type `/dui fish`;
+- type `/fish`;
 - use the **Fishing Mode** macro (make it with **Make a Fishing Mode Macro** in the settings and drag it to an action bar);
 - or just put on a fishing pole: Fishing Mode turns on by itself, and off when you take the pole off.
 

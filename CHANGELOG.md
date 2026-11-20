@@ -1,5 +1,10 @@
 # Glowey's Fishing (DaylightUI Plugin)
 
+## 1.8.3
+- A command of its own, with no "/dui" in front: /fish (or /fishing) turns Fishing Mode on or off. /dui fish still works.
+- Fixed: the game stopped giving realm names on 2026-11-20, and Glowey's Fishing kept each character's Fishing Mode state under its name and realm. A character that logged out in Fishing Mode before that day now gets its weapons back and its settings restored as it should at its next login. The state is now kept by character, so a change like this can't unhook it again.
+- Checked against Daylight UI 2.1.2. Nothing else to change.
+
 ## 1.8.2
 - Fixed with Daylight UI 1.9.5: after Daylight UI's AFK screen closed, the UI could stay faded or invisible if Fishing Mode had faded it. Fishing's fade is now kept apart from the AFK screen's and the NPC scene's, and let go when the AFK screen ends.
 

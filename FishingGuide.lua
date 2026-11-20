@@ -61,7 +61,7 @@ ns.GuideSpec = {
 		end
 		return false
 	end,
-	intro = L["Fishing Mode puts your pole on, sets the sound for fishing and gives you one key to cast and hook. Turn it on from the Glowey's Fishing data text or /dui fish."],
+	intro = L["Fishing Mode puts your pole on, sets the sound for fishing and gives you one key to cast and hook. Turn it on from the Glowey's Fishing data text or /fish."],
 	takes = function()
 		local list = {
 			L["Your weapons, while Fishing Mode is on: your best fishing pole goes on, and your weapons come back when it ends."],
@@ -98,9 +98,9 @@ Guide.AddTour("fishing", {
 	{ title = L["Fishing Mode"],
 	  text = function()
 		if Active() then
-			return string.format(L["This is Fishing Mode: your pole is in hand and the sound is set for fishing. Turn it off with the X, the data text or %s, and your weapons go back on."], Pop("/dui fish"))
+			return string.format(L["This is Fishing Mode: your pole is in hand and the sound is set for fishing. Turn it off with the X, the data text or %s, and your weapons go back on."], Pop("/fish"))
 		end
-		return string.format(L["Turn Fishing Mode on from the Glowey's Fishing data text, %s or the Fishing Mode macro: your pole goes on and this menu shows under your character."], Pop("/dui fish"))
+		return string.format(L["Turn Fishing Mode on from the Glowey's Fishing data text, %s or the Fishing Mode macro: your pole goes on and this menu shows under your character."], Pop("/fish"))
 	  end,
 	  part = function() local menu = Parts() return menu end },
 	{ title = L["Baits"],

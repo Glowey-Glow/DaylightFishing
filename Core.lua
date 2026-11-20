@@ -1,6 +1,6 @@
 -- Glowey's Fishing: a DaylightUI plugin.
 -- Fishing Mode, turned on and off from a data text (any DaylightUI data text slot, or any other
--- broker display) or /dui fish:
+-- broker display) or /fish:
 --   on:  your best fishing pole goes on (what you held is remembered), the sound is set for
 --        fishing (effects up, music and ambience down, sound in the background, soft interact),
 --        and a small menu shows under your character: your baits (click one to put it on the
@@ -10,7 +10,7 @@
 --        weapons go back on unless you put others on), and putting one on turns it on (a
 --        setting). A fight turns it off and it stays off ("Combat Detected, Exiting Fishing
 --        Mode" shows where the menu was).
--- A button in its settings makes a "Fishing Mode" macro (/dui fish) with the Fishing icon.
+-- A button in its settings makes a "Fishing Mode" macro (/fish) with the Fishing icon.
 -- The settings are on its page in DaylightUI's options (Plugins). Built on DaylightUI.API only.
 
 local ADDON, ns = ...
@@ -1192,10 +1192,10 @@ function Fishing.TourParts()
 	return menu, shown, cast, KeyText()
 end
 
--- A "Fishing Mode" macro (/dui fish) with the Fishing icon, made or brought up to date, and put on
+-- A "Fishing Mode" macro (/fish) with the Fishing icon, made or brought up to date, and put on
 -- the cursor to drop on an action bar. An account macro when there's room, else this character's.
 local MACRO_NAME = "Fishing Mode"
-local MACRO_BODY = "/dui fish"
+local MACRO_BODY = "/fish"
 
 -- The Fishing icon as a macro takes it: a file id (the spell's), else the icon's name.
 local function MacroIcon()
@@ -2390,11 +2390,90 @@ me.On("SettingChanged", function(scope, path)
 	if scope == ADDON and (path == "mastercraftFights" or path == "fadeUI") then ApplyMastercraft() end
 end)
 
+-- ---------------------------------------------------------------------------------------------
+-- This character's record in a table kept by "Name-Realm". On 2026-11-20 the game stopped giving
+-- realm names on this client (GetRealmName() is ""; Daylight UI 2.1.2 DB.lua:226-238), so every
+-- character's key turned into "Name-" and what it had saved looked gone. Now:
+--   1. The key this character was given before (owners: GUID -> key) is its key: the GUID stays the
+--      same whatever the game says the realm is, so this can't happen again.
+--   2. Else the key the game gives now, "Name-Realm" or "Name-"; a key another character holds
+--      (two characters share a first name) is left to it, and this one is kept by its GUID.
+--   3. A record that is new or empty, with no realm name to go by, takes a copy of what the
+--      character had before: the "Name-Realm" record Daylight UI finds for it (DB.ShortKey gives
+--      the same key from its own saved characters, DB.lua:181-249), else the only "Name-<realm>"
+--      record there is, else the record it shared until now. Two to choose from: none is taken.
+-- Nothing is deleted and no record is written over: the old ones stay where they were.
+-- nil while the game doesn't know the character yet (the caller then waits, or uses nothing).
+-- ---------------------------------------------------------------------------------------------
+do
+	local function EmptyRecord(t)
+		for _, v in pairs(t) do
+			if type(v) ~= "table" or not EmptyRecord(v) then return false end
+		end
+		return true
+	end
+
+	local function CopyRecord(v)
+		if type(v) ~= "table" then return v end
+		local out = {}
+		for k, x in pairs(v) do out[k] = CopyRecord(x) end
+		return out
+	end
+
+	function Fishing.CharKey(records, owners)
+		local guid, name = UnitGUID("player"), UnitName("player")
+		if type(guid) ~= "string" or guid == "" or type(name) ~= "string" or name == "" or name == (UNKNOWNOBJECT or "Unknown") then
+			return nil
+		end
+		local kept = owners[guid]
+		if type(kept) == "string" and type(records[kept]) == "table" then return kept end
+		local realm = GetRealmName()
+		if type(realm) ~= "string" then realm = "" end
+		local bare = name .. "-"
+		local key = bare .. realm
+		local taken = {}
+		for g, k in pairs(owners) do
+			if g ~= guid then taken[k] = true end
+		end
+		local shared
+		if taken[key] then key, shared = guid, key end
+		if type(records[key]) ~= "table" then records[key] = {} end
+		owners[guid] = key
+		if realm ~= "" or not EmptyRecord(records[key]) then return key end
+		-- (What it had before.)
+		local old
+		local D = _G.DaylightUI
+		local short = type(D) == "table" and type(D.DB) == "table" and D.DB.ShortKey
+		if type(short) == "function" then
+			local ok, k = pcall(short)
+			if ok and type(k) == "string" and #k > #bare and k:sub(1, #bare) == bare and type(records[k]) == "table" then old = k end
+		end
+		if not old then
+			local n = 0
+			for k, v in pairs(records) do
+				if type(k) == "string" and type(v) == "table" and #k > #bare and k:sub(1, #bare) == bare and owners[k] == nil
+					and k ~= key then
+					n = n + 1
+					old = k
+				end
+			end
+			if n ~= 1 then old = nil end
+		end
+		old = old or shared
+		if old and old ~= key and type(records[old]) == "table" then
+			for k, v in pairs(records[old]) do records[key][k] = CopyRecord(v) end
+		end
+		return key
+	end
+end
+
 local function Login()
 	DaylightFishingDB = DaylightFishingDB or {}
 	db = DaylightFishingDB
 	db.chars = db.chars or {}
-	local who = (UnitName("player") or "?") .. "-" .. (GetRealmName() or "?")
+	-- (db.charOwners: GUID -> this character's key in db.chars.)
+	if type(db.charOwners) ~= "table" then db.charOwners = {} end
+	local who = Fishing.CharKey(db.chars, db.charOwners) or ((UnitName("player") or "?") .. "-" .. (GetRealmName() or "?"))
 	db.chars[who] = db.chars[who] or {}
 	char = db.chars[who]
 	-- A new session at each login (a /reload keeps the catch).
@@ -2767,7 +2846,7 @@ local function NotSound(get) return get("sound") == false end
 
 local pages = {
 	{ id = "fishing", label = ns.GameText("PROFESSIONS_FISHING", L["Fishing"]),
-	  desc = L["Fishing Mode: put \"Fishing Mode\" in a data text slot (Info Panel, Data texts) and click it, or type /dui fish."],
+	  desc = L["Fishing Mode: put \"Fishing Mode\" in a data text slot (Info Panel, Data texts) and click it, or type /fish."],
 	  groups = {
 		{ label = L["Fishing Mode"], items = {
 			{ type = "button", label = L["Turn Fishing Mode On or Off"], func = function() Fishing.Toggle() end },
@@ -2871,6 +2950,10 @@ pcall(function()
 end)
 
 me.RegisterCommand("fish", function() Fishing.Toggle() end, L["Turn Fishing Mode on or off."])
+-- Its own command too, with no "/dui" in front (the /dui one stays for macros made before).
+_G.SLASH_GLOWEYFISH1 = "/fish"
+_G.SLASH_GLOWEYFISH2 = "/fishing"
+_G.SlashCmdList.GLOWEYFISH = function() Fishing.Toggle() end
 
 me.On("SettingChanged", function(scope, path)
 	if scope ~= ADDON or not active then return end

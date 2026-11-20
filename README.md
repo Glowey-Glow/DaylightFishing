@@ -15,7 +15,7 @@ Install it from CurseForge (or WowUp), or unzip it into `World of Warcraft\_fore
 **Turn on Fishing Mode** in any of these ways:
 
 - click the **Fishing Mode** data text on your Daylight UI data bars;
-- type `/dui fish`;
+- type `/fish`;
 - use the **Fishing Mode** macro (make it with **Make a Fishing Mode Macro** in the settings and drag it to an action bar);
 - just put on a fishing pole: Fishing Mode turns on by itself, and turns off when you take the pole off.
 
