@@ -6,6 +6,13 @@ A plugin for Daylight UI, by Glowey (not part of Daylight UI itself: report its 
 
 ---
 
+## New in 1.8.3
+- **Fishing Mode state found again:** the game stopped giving realm names on Nov 20, and a character that logged out in Fishing Mode before that day now comes back as it was.
+- **A command of its own:** `/fish` (or `/fishing`) turns Fishing Mode on or off. `/dui fish` still works.
+- **Checked against Daylight UI 2.1.2.**
+
+---
+
 ## Turn on Fishing Mode
 - click the **Fishing Mode** data text on your Daylight UI data bars;
 - type `/fish`;
@@ -23,32 +30,6 @@ A plugin for Daylight UI, by Glowey (not part of Daylight UI itself: report its 
 **Pulled into a fight?** Fishing Mode ends ("Combat Detected, Exiting Fishing Mode") and stays off. Your main hand and off hand (a one-hand and shield too) go back on at once, and your weapons always come back however Fishing Mode ends. **First start:** you pick your fishing key before the welcome (with Forever Fishing loaded, it tells you which key that one uses). With Mastercraft installed, Glowey's Fishing handles fights by default (asked once), and Mastercraft's "Hide the game's interface" waits while our UI fade is on, so the UI never stays faded.
 
 Everything goes back as it was when Fishing Mode ends.
-
----
-
-## New in 1.8.2
-- **Fixed with Daylight UI 1.9.5:** the UI no longer stays faded after Daylight UI's AFK screen closes while Fishing Mode had it faded.
-
-## New in 1.8.0
-- **Controller support:** the catch list, trainer box, tours and Set Fishing Key work with a controller.
-- **For controller players:** Catch List Always On and Trainer Box Always On keep them open while you fish, without taking the cursor.
-
-## New in 1.7.1
-- **Fix:** Shift-clicking an item in the catch list links it in chat without a Lua error.
-
-## New in 1.7.0
-- **Weapon Swap** on the fishing menu: the weapons that go back on when Fishing Mode ends.
-- **Stay Faded While Moving** (on to start): walk about and the UI stays faded.
-- **A cleaner faded screen:** Polestar's target faces, Daylight UI's 3D portraits and the tooltips of windows out of sight no longer show through.
-
-## New in 1.6.12
-- **A welcome** on first launch that says what Fishing Mode takes over while it's on. **Start Tour** shows you around: the menu, baits, your fishing key (try a cast), skill and catch, fights and settings.
-- **What's new:** a short note after each update.
-- **Help** in the settings: **Retake Tour**, **What's New**, and **Revert to Mastercraft** when Mastercraft is installed.
-- **Update alert:** a chat line when a newer version is out (once a session; switch it off under Updates).
-
-## New in 1.6.11
-- **One-hand and shield** both go back on together when a fight ends Fishing Mode, right as it starts.
 
 ---
 
