@@ -1,4 +1,20 @@
-# Glowey's Fishing (DaylightUI Plugin)
+# Glowey's Fishing
+
+## 1.9.0
+- Follows Daylight UI's language, look and scale when it's installed: the menu, its lists, the key box and the tooltips take its colors and repaint when you change its look, and the menu's size goes with Daylight UI's own scale. Without it, its own Language choice and the look picked in /glowey.
+- Without Daylight UI: dropdown menus fit their words. Each menu is as wide as its longest choice, its rows are as tall as the font, and in Blizzard Style it keeps the game's own margins (8 at the sides and top, 15 at the foot), so the last choice no longer runs past the bottom edge. Menus are solid, so the setting underneath no longer shows through.
+- Without Daylight UI: a dropdown on a settings page is wide enough for its longest choice.
+- Without Daylight UI: sliders on the settings pages can be dragged and clicked again. They were made without taking the mouse, so none of them moved.
+- Without Daylight UI: a slider can be dragged all the way. The page was drawn again on every step, which let go of the slider under the mouse; it now waits until the slider is let go.
+- Blizzard Style: bars are the profession window's own (its skill bar's border and fill, 14 high), such as the Chance of Skill Up bar.
+- What's New lists this release.
+- Blizzard Style: scroll bars are the game's own (its minimal scroll bar, with arrows at both ends): drag the thumb, click the track or the arrows, as in the game's windows.
+- Works without Daylight UI. Daylight UI is no longer required: with it installed nothing changes, and without it the plugin runs on its own. Its settings are then in a Glowey's Plugins window (/glowey, or the game's Options > AddOns), shared by every Glowey plugin you have, with a General page for the accent color, window opacity and moving frames. Frames move with /glowey unlock (drag; right-click puts one back), and /glowey <command> stands in for /dui <command>.
+- Your settings are kept either way: they are now also saved in the plugin's own saved variable, so taking Daylight UI out keeps them, and settings made without it are taken into Daylight UI when it comes back.
+- Without Daylight UI: a Look choice on the General page of /glowey for every Glowey window: Glowey's own, Blizzard Style (Blizzard's own window frames from this client: the metal frame with its title bar and red close button, dialog borders, tooltip boxes, red buttons, edit boxes, check boxes, sliders, tabs and gold text), or Polestar's when Polestar is loaded. With Polestar, Polestar itself paints the windows in the look you picked in its settings, and they change when you change it there. And a minimap button: click it for the settings, right-click to move frames, drag it round the map. It also appears in the game's addon menu, and Minimap Icon on the General page hides it.
+- Blizzard Style fits its borders to each window: a small box (Essentials' combat timer, the tabs) gets the tooltip's thin border instead of the dialog's, which overlapped itself there, and the border sits round the outside of a window so it never covers what's inside.
+- Without Daylight UI: Fishing Mode, the menu, the key, the sound and the quiet screen all work as before, and the quiet screen fades the game's own UI. Turn it on with /fish, the macro, or any data broker display. Hide Daylight UI's Fishing Water and Daylight UI's opacity switches are left out without it.
+- Controller navigation of the plugin's windows comes from Daylight UI's controller support, so it needs Daylight UI.
 
 ## 1.8.3
 - A command of its own, with no "/dui" in front: /fish (or /fishing) turns Fishing Mode on or off. /dui fish still works.

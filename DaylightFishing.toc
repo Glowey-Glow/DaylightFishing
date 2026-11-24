@@ -1,14 +1,17 @@
 ## Interface: 16001
-## Title: Glowey's |cffa335eeFishing|r (DaylightUI Plugin)
+## Title: Glowey's |cffa335eeFishing|r
 ## IconTexture: Interface\AddOns\DaylightFishing\Media\icon.png
-## Notes: A plugin for Daylight UI: Fishing Mode from a data text button. Equips your pole, sets the sound up for fishing, and puts your bait and a one-button cast under your character.
+## Group: DaylightFishing
+## Notes: Works on its own, and integrates with Daylight UI when it's installed (its options window, look and profiles). Fishing Mode from a data text button. Equips your pole, sets the sound up for fishing, and puts your bait and a one-button cast under your character.
 ## Author: Glowey
 ## X-License: All Rights Reserved
 ## X-Curse-Project-ID: 1799572
 ## Version: @project-version@
-## Dependencies: DaylightUI
-## OptionalDeps: TomTom
-## SavedVariables: DaylightFishingDB
+## OptionalDeps: DaylightUI, TomTom
+## SavedVariables: DaylightFishingDB, DaylightFishingSettings
+# (The saved variables load before the files: Locales/Locales.lua reads the language picked in
+# Glowey's Plugins window as it loads.)
+## LoadSavedVariablesFirst: 1
 
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
@@ -20,6 +23,7 @@ Locales\esES.lua
 Locales\ruRU.lua
 Locales\koKR.lua
 Locales\zhCN.lua
+Host.lua
 Update.lua
 Guide.lua
 FishingGuide.lua

@@ -61,6 +61,11 @@ local ADDON, ns = ...
 --   Pad.Stick(frame, scroll)   the right stick scrolls `scroll` while frame has the cursor
 --   Pad.Into(region, scroll)   the same, for the followed window holding region (a row's OnEnter:
 --                              the stick scrolls the list the cursor is in)
+--   Pad.Rescan(frame)          a followed window changed a lot: the game finds its buttons again
+--   Pad.Leaving(frame), Pad.Returning(frame)  the cursor off a window that's going (before its
+--                              Hide), and back on one caught as it went
+-- A frame is followed once only: the kit's Follow hooks it on every call (DaylightUI/Pad.lua:1093-
+-- 1104). frame.__gloweyFollowed marks one followed here or by Host.Window (Host.lua).
 -- Nothing runs while no window of ours is open.
 -- ---------------------------------------------------------------------------------------------
 
@@ -108,11 +113,17 @@ local function Calm(fn)
 	padWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
 end
 
+-- Followed here or by Host.Window.
+local function Followed(frame)
+	return type(frame) == "table" and (padFollowed[frame] or frame.__gloweyFollowed) and true or false
+end
+
 function Pad.Follow(frame, close)
-	if type(frame) ~= "table" or padFollowed[frame] then return end
+	if type(frame) ~= "table" or Followed(frame) then return end
 	local P = Kit()
 	if not (P and type(P.Follow) == "function") then return end
 	padFollowed[frame] = true
+	frame.__gloweyFollowed = true
 	KitCall("Follow", frame, close)
 	-- (Hidden along with its parent, a frame still says it's shown: the game is told all the same.)
 	frame:HookScript("OnHide", function(self)
@@ -131,7 +142,7 @@ end
 function Pad.Settle(aim) KitCall("Settle", aim) end
 
 function Pad.Front(frame)
-	if not (padFollowed[frame] and frame:IsVisible() and Pad.On()) or InCombatLockdown() then return end
+	if not (Followed(frame) and frame:IsVisible() and Pad.On()) or InCombatLockdown() then return end
 	local G = _G.GamepadMode
 	local m = type(G) == "table" and G.FrameControlsManager or nil
 	if type(m) ~= "table" or type(m.GetActiveFrame) ~= "function" then return end
@@ -199,7 +210,7 @@ function Pad.Scroller(spec)
 end
 
 function Pad.Stick(frame, scroll)
-	if type(frame) ~= "table" or not padFollowed[frame] or frame.padScroll == scroll then return end
+	if type(frame) ~= "table" or not Followed(frame) or frame.padScroll == scroll then return end
 	frame.padScroll = scroll
 	if Pad.On() and not InCombatLockdown() then KitCall("Scrolls", frame) end
 end
@@ -207,11 +218,24 @@ end
 function Pad.Into(region, scroll)
 	if not scroll or not Pad.On() then return end
 	local f = region
-	while f and not padFollowed[f] do f = f.GetParent and f:GetParent() or nil end
+	while f and not Followed(f) do f = f.GetParent and f:GetParent() or nil end
 	if f then Pad.Stick(f, scroll) end
 end
 
-local API = _G.DaylightUI and _G.DaylightUI.API
+-- (Out of a fight only, as the kit's own are: DaylightUI/Pad.lua:1080-1091, :1121-1125.)
+function Pad.Rescan(frame)
+	if Followed(frame) and not InCombatLockdown() then KitCall("Rescan", frame) end
+end
+
+function Pad.Leaving(frame)
+	if Followed(frame) then KitCall("Leaving", frame) end
+end
+
+function Pad.Returning(frame)
+	if Followed(frame) then KitCall("Returning", frame) end
+end
+
+local API = ns.API or (_G.DaylightUI and _G.DaylightUI.API)
 if not API then return end
 local L = ns.L or setmetatable({}, { __index = function(_, k) return k end })
 
@@ -240,7 +264,9 @@ local function G()
 	return db.guide
 end
 
+-- (Through Host.Ink, so it's painted again when the look changes.)
 local function Ink(fs, role, alpha)
+	if ns.Host and ns.Host.Ink then return ns.Host.Ink(fs, role, alpha) end
 	local c = API.Colors()[role]
 	if type(c) == "table" then fs:SetTextColor(c[1], c[2], c[3], alpha or 1) end
 end
@@ -293,6 +319,12 @@ end
 
 local layer, card, toast
 local note
+
+-- The tour's outline breathes only with the player's motion on (API.MotionOn, DaylightUI/API.lua:859).
+local function Pulse(on)
+	if not layer then return end
+	if on and not (API.MotionOn and API.MotionOn() == false) then layer.pulse:Play() else layer.pulse:Stop() end
+end
 
 local function Box(regions)
 	local ui = UIParent:GetEffectiveScale()
@@ -458,6 +490,11 @@ local function Dim(box)
 	e[4]:SetPoint("BOTTOMLEFT", layer, "BOTTOMLEFT", r - 2, b) e[4]:SetSize(2, t - b)
 end
 
+-- A look change while a tour runs: its outline in the new accent (the texts follow by Host.Ink).
+if ns.Host and ns.Host.OnStyle then
+	ns.Host.OnStyle(function() if S and layer and layer:IsShown() and S.box then Dim(S.box) end end)
+end
+
 -- The card beside the lit part: below it, else above, right, left; else the middle.
 local function PlaceCard(box)
 	local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
@@ -484,15 +521,14 @@ end
 local function Step() return S and S.def.steps[S.i] end
 
 -- DaylightUI's options window is open (a closing one, fading out, counts as closed).
+-- (Daylight UI's, or without it the Glowey settings window: Host.lua.)
 local function OptionsOpen()
-	local f = _G.DaylightUIOptions
-	return type(f) == "table" and f.IsShown and f:IsShown() and (f:GetAlpha() or 0) > 0.5
+	return ns.Host and ns.Host.OptionsShown() or false
 end
 
 -- Opens or closes DaylightUI's options as "/dui" does.
 local function ToggleOptions()
-	local cmd = _G.SlashCmdList and _G.SlashCmdList.DAYLIGHTUI
-	if type(cmd) == "function" then pcall(cmd, "") end
+	if ns.Host then ns.Host.ToggleOptions() end
 end
 
 local function Regions(step)
@@ -583,7 +619,7 @@ local function Finish(how)
 	Leave(nil)
 	local id, def = S.id, S.def
 	S = nil
-	layer.pulse:Stop()
+	Pulse(false)
 	layer:Hide()
 	SetBusy(false)
 	if how then G().tours[id] = true end
@@ -644,7 +680,7 @@ function Guide.Run(id, quiet)
 	card:Hide()
 	layer:SetAlpha(1)
 	layer:Show()
-	layer.pulse:Play()
+	Pulse(true)
 	local step = Step()
 	if step.enter then pcall(step.enter) end
 	C_Timer.After((def.start or step.enter or def.reopenOptions) and 0.4 or 0, function() if S and S.id == id then Show() end end)
@@ -710,12 +746,19 @@ local function BuildNote()
 	note.main:SetPoint("BOTTOMRIGHT", -18, 18)
 	note.other = Button(note, "")
 	note.other:SetPoint("RIGHT", note.main, "LEFT", -GAP, 0)
-	-- A controller: the cursor starts on the main button; B is the X.
+	-- A controller: the cursor starts on the main button; B is the X, and so is Escape. With
+	-- Host.Window it also fades in with the window sounds, as Daylight UI's own boxes do (Host.lua).
 	note.padFirst = function() return note.main end
-	Pad.Follow(note, function()
+	local function X()
 		note:Hide()
 		if note.onClose then note.onClose() end
-	end)
+	end
+	if ns.Host and ns.Host.Window then ns.Host.Window(note, { rise = 6, close = X }) end
+	-- (Daylight UI's global scale, as its own boxes have: Host.Scaled. The tour's card isn't: it's
+	-- placed in the screen's own units beside what it lights.)
+	if ns.Host and ns.Host.Scaled then ns.Host.Scaled(note, { own = 1 }) end
+	-- (Not followed by Host.Window, an older Daylight UI's kit: followed here. Never twice.)
+	Pad.Follow(note, X)
 end
 
 -- title, body text, main = { label, fn }, other = { label, fn } or nil, onClose (its X).
@@ -762,11 +805,7 @@ end
 -- names a plugin's pages), else as "/dui" opens them. (DaylightUI has no call for a page: its
 -- options window is asked directly, and any change there falls back to "/dui".)
 function Guide.OpenOptions(pageId)
-	local P = _G.DaylightUI and _G.DaylightUI.OptionsPanel
-	if pageId and type(P) == "table" and type(P.Show) == "function" then
-		if pcall(P.Show, ADDON .. "." .. pageId) then return end
-	end
-	if not OptionsOpen() then ToggleOptions() end
+	if ns.Host then ns.Host.OpenOptions(pageId) end
 end
 
 local function CanRevert()
@@ -777,33 +816,131 @@ local function CanRevert()
 	return ok and yes
 end
 
-function Guide.Welcome()
+-- The welcome's words, and its answers (for the note, and for its page in Daylight UI's setup guide).
+local function WelcomeBody()
 	local takes = spec.takes and spec.takes() or {}
 	local head = spec.heading or (CanRevert() and L["What it takes over (you can go back any time with Revert in its options):"]
 		or L["What It Takes Over:"])
-	local body = (spec.intro or "") .. "\n\n" .. head .. "\n" .. Bullets(takes)
-	-- (Answered only by a button or the X: until then it shows again at the next login.)
-	local function Answered()
-		local g = G()
-		g.welcomed = true
-		g.newsSeen = spec.news and spec.news[1] and spec.news[1].version
-	end
-	local function Decline()
+	return (spec.intro or "") .. "\n\n" .. head .. "\n" .. Bullets(takes)
+end
+
+-- (Answered only by a button or the X: until then it shows again at the next login.)
+local function Answered()
+	local g = G()
+	g.welcomed = true
+	g.newsSeen = spec.news and spec.news[1] and spec.news[1].version
+end
+
+local function Decline()
+	Answered()
+	if spec.decline then pcall(spec.decline.fn) end
+end
+
+-- What the main button opens once the welcome is answered: the tour, or the plugin's own main.
+local function Proceed()
+	if spec.main then pcall(spec.main.fn) else StartTour() end
+end
+
+function Guide.Welcome()
+	local main = { spec.main and spec.main.label or L["Start Tour"], function()
 		Answered()
-		if spec.decline then pcall(spec.decline.fn) end
-	end
-	local main = spec.main and { spec.main.label, function()
-			Answered()
-			if spec.accept then pcall(spec.accept) end
-			pcall(spec.main.fn)
-		end } or { L["Start Tour"], function()
-			Answered()
-			if spec.accept then pcall(spec.accept) end
-			StartTour()
-		end }
-	ShowNote(string.format(L["Welcome to %s"], spec.name), body, main,
+		if spec.accept then pcall(spec.accept) end
+		Proceed()
+	end }
+	ShowNote(string.format(L["Welcome to %s"], spec.name), WelcomeBody(), main,
 		spec.decline and { spec.decline.label, Decline } or nil,
 		Decline)
+end
+
+-- ---------------------------------------------------------------------------------------------
+-- With Daylight UI (its API 1.10: me.AddInstaller, me.ShowInstaller, DaylightUI/API.md:822-858) the
+-- welcome is also a page of Daylight UI's setup guide, shown with the other plugins' guides once
+-- Daylight UI is set up (DaylightUI/InstallerPlugins.lua:1-13, :236-238), once per account (as the
+-- welcome is). Seen there, the note never shows: one welcome. Its answers are the note's; what they
+-- open (the tour, the options) waits for the setup guide to close, and leaving it unanswered counts
+-- as the note's X once it closes.
+-- ---------------------------------------------------------------------------------------------
+
+local setupAdded = false
+
+-- fn() once Daylight UI's setup guide (and anything else of a guide) is gone and no fight is on.
+local function AfterSetup(fn)
+	local tries = 0
+	local function try()
+		tries = tries + 1
+		if InCombatLockdown() or DaylightBusy() then
+			if tries < 600 then C_Timer.After(1, try) end
+			return
+		end
+		pcall(fn)
+	end
+	C_Timer.After(0.5, try)
+end
+
+local function Me()
+	local me = ns.me
+	if type(me) ~= "table" and type(API.For) == "function" then
+		local ok, got = pcall(API.For, ADDON)
+		me = ok and got or nil
+	end
+	return type(me) == "table" and me or nil
+end
+
+-- Adds the page, for a player who hasn't seen the welcome. False without Daylight UI's call.
+local function AddToSetup()
+	if ns.standalone or setupAdded or not spec then return false end
+	local me = Me()
+	if not (me and type(me.AddInstaller) == "function") then return false end
+	local answered, seen = false, false
+	local function Seen()
+		if seen then return end
+		seen = true
+		G().welcomed = true
+		AfterSetup(function()
+			if answered then return end
+			answered = true
+			Decline()
+		end)
+	end
+	local buttons = { { text = spec.main and spec.main.label or L["Start Tour"], main = true, onClick = function()
+		if answered then return nil end
+		answered = true
+		Answered()
+		if spec.accept then pcall(spec.accept) end
+		AfterSetup(Proceed)
+		return spec.main and L["Opens when this guide closes."] or L["The tour starts when this guide closes."]
+	end } }
+	if spec.decline then
+		buttons[2] = { text = spec.decline.label, onClick = function()
+			if answered then return nil end
+			answered = true
+			Decline()
+			return L["Done"]
+		end }
+	end
+	-- (A new reset token, a new version: the page shows once more, as the welcome does.)
+	local version = tonumber((tostring(spec.reset or ""):gsub("%D", ""))) or 1
+	local ok, added = pcall(me.AddInstaller, {
+		version = version, account = true, title = spec.name,
+		pages = { { title = string.format(L["Welcome to %s"], spec.name), text = WelcomeBody(), buttons = buttons,
+			build = function(holder)
+				holder.Refresh = Seen
+				Seen()
+				return 1
+			end } },
+	})
+	setupAdded = ok and added == true
+	return setupAdded
+end
+
+-- The welcome in Daylight UI's setup window, for a player who didn't see it there at login (its
+-- guide wasn't run): false when that window can't show it, and the note shows instead.
+local function ShowInSetup()
+	if not setupAdded then return false end
+	local me = Me()
+	if not (me and type(me.ShowInstaller) == "function") then return false end
+	local ok, shown = pcall(me.ShowInstaller)
+	return ok and shown == true
 end
 
 -- The notes newer than the last ones read (all = every release's).
@@ -838,6 +975,8 @@ local function Greet()
 			if latest and g.newsSeen ~= latest then Guide.News(false) end
 			return
 		end
+		-- (With Daylight UI, in its setup window when it can show it there: one welcome, its way.)
+		if ShowInSetup() then return end
 		Guide.Welcome()
 	elseif latest and g.newsSeen ~= latest then
 		Guide.News(false)
@@ -872,6 +1011,9 @@ function Guide.Setup(s)
 				f:UnregisterEvent("ADDON_LOADED")
 			end
 		elseif event == "PLAYER_LOGIN" then
+			-- (Before Daylight UI shows the plugins' setup guides, 1 s after login: InstallerPlugins.lua:
+			-- 236-238. At login, so the welcome lists what its modules turned on.)
+			if not G().welcomed and not spec.wasExisting then pcall(AddToSetup) end
 			C_Timer.After(4, Greet)
 		elseif S then
 			Finish(nil)   -- (a fight: put everything back at once, the tour runs again another time)

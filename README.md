@@ -4,7 +4,7 @@ A plugin for Daylight UI on WoW: Forever that sets you up for fishing with one c
 
 ## Requirements
 
-- Daylight UI.
+- Nothing. Daylight UI is optional: without it Host.lua stands in for it, and the settings are in /glowey.
 
 ## Installing
 

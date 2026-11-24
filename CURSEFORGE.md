@@ -1,16 +1,14 @@
-# Glowey's Fishing (DaylightUI Plugin)
+# Glowey's Fishing
 
 **Fishing Mode for Daylight UI on WoW: Forever:** everything set up for fishing with one click, and put back as it was when you're done.
 
-A plugin for Daylight UI, by Glowey (not part of Daylight UI itself: report its bugs here, not to Daylight UI). Requires **Daylight UI**.
+By Glowey. A standalone addon that **integrates with Daylight UI** when it's installed: its pages sit in Daylight UI's options window, in its look, and ride in its profiles (not part of Daylight UI itself: report its bugs here, not to Daylight UI). Without Daylight UI, its settings are in the Glowey's Plugins window (**/glowey**, or Options > AddOns).
 
 ---
 
-## New in 1.8.3
-- **Fishing Mode state found again:** the game stopped giving realm names on Nov 20, and a character that logged out in Fishing Mode before that day now comes back as it was.
-- **A command of its own:** `/fish` (or `/fishing`) turns Fishing Mode on or off. `/dui fish` still works.
-- **Checked against Daylight UI 2.1.2.**
-
+## New in 1.9.0
+- **Works without Daylight UI:** its settings are in Glowey's settings (**/glowey**), in Glowey's look or **Blizzard Style** (the game's own window frames, tabs, bars and scroll bars). With Daylight UI it follows its language, look and scale.
+- **Your settings are kept either way:** taking Daylight UI out, or putting it back, keeps them.
 ---
 
 ## Turn on Fishing Mode

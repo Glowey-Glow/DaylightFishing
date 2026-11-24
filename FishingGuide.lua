@@ -6,7 +6,7 @@ local ADDON, ns = ...
 local Guide = ns.Guide
 if not Guide then return end
 local L = ns.L
-local DUI = _G.DaylightUI
+local DUI = ns.DUI or _G.DaylightUI   -- (ns.DUI: Host.lua; the global only in the offline tests)
 local Pop = Guide.Pop
 
 local function Fishing() return _G.DaylightFishing end
@@ -22,6 +22,9 @@ end
 
 -- What changed, newest first: shown once after an update ("What's new" in the options shows them again).
 local NEWS = {
+	{ version = "1.9.0", lines = {
+		L["Works without Daylight UI: its settings are in Glowey's settings (/glowey), in Glowey's look or Blizzard Style. With Daylight UI it follows its language, look and scale."],
+	} },
 	{ version = "1.8.0", lines = {
 		L["Controller support: the catch list, the trainer box, the tours and Set Fishing Key work with a controller."],
 		L["For controller players: Catch List Always On and Trainer Box Always On keep them open while you fish, without taking the cursor."],
@@ -69,7 +72,7 @@ ns.GuideSpec = {
 			L["One key, while you fish: it casts, then hooks the fish. Pick it with Set Fishing Key."],
 			L["Fights: a fight ends Fishing Mode and puts your weapons back on."],
 		}
-		local ok, ours = pcall(_G.DaylightUI.API.GetSetting, ADDON, "mastercraftFights")
+		local ok, ours = pcall(ns.API.GetSetting, ADDON, "mastercraftFights")
 		if MastercraftLoaded() and not (ok and ours == false) then
 			list[#list + 1] = L["Mastercraft's \"After the fight: your fishing gear back on\" is switched off, so your pole stays off after a fight."]
 		end
@@ -131,6 +134,10 @@ Guide.AddTour("fishing", {
 	  text = L["A fight ends Fishing Mode at once and your weapons go back on, shield and all. Turn it on again once the fight is over."] },
 	{ title = L["Settings"],
 	  text = function()
+		if ns.standalone then
+			return string.format(L["Your key, the sound and a Fishing Mode macro are in Glowey's settings: %s. %s there shows this tour again."],
+				Pop("/glowey"), Pop(L["Retake Tour"]))
+		end
 		return string.format(L["Your key, the sound and a Fishing Mode macro are in Daylight UI's options: %s. %s there shows this tour again."],
 			Pop(L["Plugins > Fishing"]), Pop(L["Retake Tour"]))
 	  end },

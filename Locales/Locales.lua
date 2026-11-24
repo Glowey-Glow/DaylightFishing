@@ -18,10 +18,43 @@
 -- Russian has three forms; its third ("few": 2-4, 22-24, ...) is a key ending in "#few" that only
 -- ruRU.lua carries. French uses "one" for 0 and 1, Korean and Chinese have a single form.
 
-local _, ns = ...
+local ADDON, ns = ...
 
-ns.LOCALE = GetLocale and GetLocale() or "enUS"
-local ENGLISH = ns.LOCALE:sub(1, 2) == "en"
+-- The language of the addon's own text, ns.LOCALE: Daylight UI's own pick while it runs (its Home >
+-- Language, since 2.2.5), else the Language picked on the General page of Glowey's Plugins window
+-- (Host.lua), else the game's. One of the seven there are files for; enGB reads enUS, esMX esES.
+-- The game's own words (GAME below, ns.GameText) stay in the game's language.
+local CLIENT = GetLocale and GetLocale() or "enUS"
+local FOLD = { enGB = "enUS", esMX = "esES" }
+local HAVE = { enUS = true, deDE = true, esES = true, frFR = true, ruRU = true, koKR = true, zhCN = true }
+local function Picked()
+	local D = rawget(_G, "DaylightUI")
+	if type(D) == "table" and type(D.API) == "table" and D.API.major == 1 then
+		-- (Its pick is on from its own ADDON_LOADED, which comes before any addon loading after it:
+		-- DaylightUI/Locales/Locales.lua:16-20, Core.lua:984-992. Its saved pick, should it not be.)
+		local pick = D.LOCALE
+		local db = rawget(_G, "DaylightUIDB")
+		local saved = type(db) == "table" and db.language
+		if type(saved) == "string" and saved ~= "auto" and pick == D.CLIENT_LOCALE then pick = saved end
+		return pick
+	end
+	-- (Kept in every Glowey addon's <Addon>Settings, the newest counting. Ours can be read this early
+	-- because the .toc loads the saved variables first: LoadSavedVariablesFirst.)
+	local best, at
+	local own = rawget(_G, ADDON .. "Settings")
+	if type(own) == "table" and type(own.general) == "table" then best, at = own.general.language, own.generalAt or 0 end
+	local host = rawget(_G, "GloweyHost")
+	local S = type(host) == "table" and host.state
+	if type(S) == "table" and type(S.general) == "table" and (S.generalAt or -1) >= (at or -1) then best = S.general.language end
+	return best
+end
+local pick = Picked()
+pick = type(pick) == "string" and (FOLD[pick] or pick) or nil
+ns.LOCALE = (pick and HAVE[pick]) and pick or (FOLD[CLIENT] or CLIENT)
+-- CLIENT_ENGLISH: the game runs in English. ENGLISH: the game's words don't stand in for ours (an
+-- English game, or our text picked in another language than the game's).
+local CLIENT_ENGLISH = CLIENT:sub(1, 2) == "en"
+local ENGLISH = CLIENT_ENGLISH or ns.LOCALE ~= (FOLD[CLIENT] or CLIENT)
 
 -- Keys whose English is word for word one of the game's global strings (same case, punctuation
 -- and holes), in the same sense: on a non-English client the game's own translation stands in
@@ -51,7 +84,7 @@ ns.L = setmetatable({}, {
 -- The game's own string (a global such as PROFESSIONS_FISHING) on a non-English client, when it
 -- has it; else ours (an L[...] value). English clients always keep ours.
 function ns.GameText(global, ours)
-	if not ENGLISH then
+	if not CLIENT_ENGLISH then
 		local v = _G[global]
 		if type(v) == "string" and v ~= "" then return v end
 	end

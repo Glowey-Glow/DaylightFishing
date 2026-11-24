@@ -11,13 +11,13 @@
 --        setting). A fight turns it off and it stays off ("Combat Detected, Exiting Fishing
 --        Mode" shows where the menu was).
 -- A button in its settings makes a "Fishing Mode" macro (/fish) with the Fishing icon.
--- The settings are on its page in DaylightUI's options (Plugins). Built on DaylightUI.API only.
+-- The settings are on its page in DaylightUI's options (Plugins), or /glowey without it. Built on DaylightUI.API, or without Daylight UI on Host.lua's stand-in for it.
 
 local ADDON, ns = ...
 local L, Plural = ns.L, ns.Plural
 
-local DUI = _G.DaylightUI
-local API = DUI and DUI.API
+local DUI = ns.DUI or _G.DaylightUI   -- (ns.DUI: Host.lua; the global only in the offline tests)
+local API = ns.API or (DUI and DUI.API)   -- Daylight UI's, or without it Host.lua's stand-in
 if not API or API.major ~= 1 then return end
 
 local me = API.For(ADDON)
@@ -314,7 +314,8 @@ local function IconButton(name, parent, size, tooltip)
 	b:SetSize(size, size)
 	b:RegisterForClicks("AnyUp")
 	b:SetAttribute("useOnKeyDown", false)
-	API.Skin(b, { noBevel = true, noBackground = true })
+	-- (Host.Skin: API.Skin, drawn again after every look change, Host.lua)
+	ns.Host.Skin(b, { noBevel = true, noBackground = true })
 	local top = CreateFrame("Frame", nil, b)
 	top:SetAllPoints()
 	top:SetFrameLevel(b:GetFrameLevel() + 10)
@@ -380,6 +381,10 @@ local function BuildMenu()
 	menu:SetClampedToScreen(true)
 	menu:SetPoint("CENTER", UIParent, "CENTER", 0, -190)
 	menu:Hide()
+	-- Menu Size times Daylight UI's own scale (general.scale, DaylightUI/DB.lua:43), as its windows
+	-- are: Host.Scaled, applied out of a fight (Host.lua). The catch list and the trainer box are
+	-- the menu's children and take its scale.
+	ns.Host.Scaled(menu, { own = function() return Get("menuScale") or 1 end })
 
 	-- Fishing skill on top: a bar to this rank's cap, a mark where the next rank can be trained.
 	-- Click it: where to train next.
@@ -429,15 +434,11 @@ local function BuildMenu()
 	end, 14)
 	menu.close:SetPoint("TOPRIGHT", -8, -7)
 
-	cast = IconButton("DaylightFishingCast", menu, CAST_SIZE, function()
-		GameTooltip:SetText(L["Cast"])
+	cast = IconButton("DaylightFishingCast", menu, CAST_SIZE, function(self)
+		-- (Host.Tip: the title in TITLE, the line in TEXT, owned and shown again here: Host.lua)
 		local key = KeyText()
-		local r, g, b = TextColor("TEXT")
-		if key then
-			GameTooltip:AddLine(L["%s casts, and hooks the fish."]:format(key), r, g, b)
-		else
-			GameTooltip:AddLine(L["Pick a fishing key in the options to fish with one key."], r, g, b, true)
-		end
+		ns.Host.Tip(self, L["Cast"], key and L["%s casts, and hooks the fish."]:format(key)
+			or L["Pick a fishing key in the options to fish with one key."], nil, "ANCHOR_TOP")
 	end)
 	cast:SetAttribute("type", "macro")
 	cast:SetAttribute("macrotext", "/cast " .. FishingName())
@@ -457,12 +458,12 @@ local function BuildMenu()
 
 	menu.swap = API.Text(menu, "tiny", "CENTER")
 	menu.swap:SetText(L["Weapon Swap"])
-	menu.swap:SetTextColor(TextColor("LABEL"))
+	ns.Host.Ink(menu.swap, "LABEL")
 	menu.swap:Hide()
 
 	menu.empty = API.Text(menu, "small", "LEFT")
 	menu.empty:SetText(L["No bait in your bags"])
-	menu.empty:SetTextColor(TextColor("OFF"))
+	ns.Host.Ink(menu.empty, "OFF")
 
 	-- This session's catch: hover for all of it.
 	menu.catch = CreateFrame("Frame", nil, menu)
@@ -473,11 +474,11 @@ local function BuildMenu()
 	menu.catch.text:SetPoint("LEFT")
 	menu.catch:SetScript("OnEnter", function(self)
 		menu.catch.text:SetTextColor(API.Accent())
-		GameTooltip:SetOwner(self, "ANCHOR_TOP")
-		_G.DaylightFishing.CatchTooltip(GameTooltip, true)
-		GameTooltip:AddLine(" ")
-		GameTooltip:AddLine(L["Click: the catch list, fish by fish"], 0.8, 0.8, 0.8)
-		GameTooltip:Show()
+		ns.Host.TipLines(self, function(t)
+			_G.DaylightFishing.CatchTooltip(GameTooltip, true)
+			t.Blank()
+			t.Line(L["Click: the catch list, fish by fish"], "TEXT")
+		end, "ANCHOR_TOP")
 	end)
 	menu.catch:SetScript("OnLeave", function()
 		GameTooltip:Hide()
@@ -526,7 +527,7 @@ end
 -- The baits, the cast button and the menu's size. Out of combat (the buttons are secure).
 function UpdateMenu()
 	if not menu or InCombatLockdown() then return end
-	menu:SetScale(Get("menuScale") or 1)
+	ns.Host.Rescale(menu)
 	local baits = BaitsInBags()
 	local x = PAD
 	local top = -26 - SKILL_H
@@ -781,9 +782,15 @@ local function Unfade()
 	MapAway(false)
 end
 
+-- Daylight UI's public check (API.IsAfkScreen, DaylightUI/API.lua:868); its frame itself, checked,
+-- on one without that call.
 local function AfkScreen()
+	if type(API.IsAfkScreen) == "function" then
+		local ok, up = pcall(API.IsAfkScreen)
+		if ok then return up == true end
+	end
 	local afk = _G.DaylightUIAfkScreen
-	return afk and afk:IsShown()
+	return type(afk) == "table" and type(afk.IsShown) == "function" and afk:IsShown() == true
 end
 
 local function WantFade()
@@ -1019,6 +1026,8 @@ local function BuildNotice()
 	notice.text = API.Text(notice, "body", "CENTER")
 	notice.text:SetPoint("CENTER")
 	notice.text:SetWordWrap(false)
+	-- (The menu's scale: Menu Size times Daylight UI's, Host.Scaled.)
+	ns.Host.Scaled(notice, { own = function() return Get("menuScale") or 1 end })
 	notice:SetScript("OnUpdate", function(self, elapsed)
 		self.age = self.age + elapsed
 		local a
@@ -1044,7 +1053,7 @@ local function ShowNotice()
 	BuildNotice()
 	notice.text:SetText(L["Combat Detected, Exiting Fishing Mode"])
 	notice.text:SetTextColor(TextColor("WARN"))
-	notice:SetScale(Get("menuScale") or 1)
+	ns.Host.Rescale(notice)
 	-- As wide as the menu, or as its text needs (never cut off).
 	local w, h = math.ceil(notice.text:GetStringWidth()) + 2 * PAD + 8, 44
 	notice:ClearAllPoints()
@@ -1410,13 +1419,13 @@ local function BuildPanel()
 	panel.title = API.Text(panel, "small", "LEFT")
 	panel.title:SetPoint("TOPLEFT", PAD, -8)
 	panel.title:SetText(L["Catch This Session"])
-	panel.title:SetTextColor(API.Accent())
+	ns.Host.Ink(panel.title, "pop")
 	panel.total = API.Text(panel, "tiny", "LEFT")
 	panel.total:SetPoint("TOPLEFT", panel.title, "BOTTOMLEFT", 0, -4)
 	panel.close = API.Close(panel, function() panel:Hide() end, 14)
 	panel.close:SetPoint("TOPRIGHT", -8, -7)
 	panel.empty = API.Text(panel, "small", "LEFT")
-	panel.empty:SetTextColor(TextColor("OFF"))
+	ns.Host.Ink(panel.empty, "OFF")
 	panel.clear = API.Button(panel, L["Clear"], 20)
 	panel.clear:SetSize(70, 20)
 	panel.clear:SetPoint("BOTTOMRIGHT", -8, 8)
@@ -1648,24 +1657,17 @@ end
 function Fishing.SkillTooltip(anchor)
 	local skill, cap = FishingSkill()
 	local rank = NextRank(skill, cap)
-	GameTooltip:SetOwner(anchor, "ANCHOR_TOP")
-	if not rank then
-		GameTooltip:SetText(L["Fishing - Maximum Trained"])
-		GameTooltip:Show()
-		return
-	end
-	GameTooltip:SetText(RankTitle(rank))
-	-- (Colors are passed apart: a call that returns three values only gives its first when another
-	-- argument follows it.)
-	local r, g, b = TextColor("TEXT")
-	GameTooltip:AddLine(HowText(rank), r, g, b, true)
-	if CanLearn(rank, skill) then
-		r, g, b = TextColor("GOOD")
-		GameTooltip:AddLine(L["You can learn it now."], r, g, b)
-	end
-	r, g, b = TextColor("OFF")
-	GameTooltip:AddLine(L["Click: where to go"], r, g, b)
-	GameTooltip:Show()
+	-- (Host.TipLines: each line in a role of the look, owned and shown there: Host.lua)
+	ns.Host.TipLines(anchor, function(t)
+		if not rank then
+			t.Line(L["Fishing - Maximum Trained"], "TITLE")
+			return
+		end
+		t.Line(RankTitle(rank), "TITLE")
+		t.Line(HowText(rank), "TEXT", true)
+		if CanLearn(rank, skill) then t.Line(L["You can learn it now."], "GOOD") end
+		t.Line(L["Click: where to go"], "OFF")
+	end, "ANCHOR_TOP")
 end
 
 -- ---------------------------------------------------------------------------------------------
@@ -1757,14 +1759,16 @@ local function BoxRow(i)
 	row:SetScript("OnEnter", function(self)
 		if not self.spot then return end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		-- (The book's own item tip stays; our lines in the look's roles, Host.Color.)
+		local r, g, b = ns.Host.Color("TEXT")
 		if self.item then
 			GameTooltip:SetItemByID(self.item)
-			GameTooltip:AddLine(L["Sold by %s, %s (%d, %d)"]:format(self.who, PlaceName(self.spot), self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
+			GameTooltip:AddLine(L["Sold by %s, %s (%d, %d)"]:format(self.who, PlaceName(self.spot), self.spot.x + 0.5, self.spot.y + 0.5), r, g, b)
 		else
-			GameTooltip:SetText(self.who)
-			GameTooltip:AddLine(("%s (%d, %d)"):format(PlaceName(self.spot), self.spot.x + 0.5, self.spot.y + 0.5), 1, 1, 1)
+			GameTooltip:SetText(self.who, ns.Host.Color("TITLE"))
+			GameTooltip:AddLine(("%s (%d, %d)"):format(PlaceName(self.spot), self.spot.x + 0.5, self.spot.y + 0.5), r, g, b)
 		end
-		GameTooltip:AddLine(L["Click for a waypoint."], TextColor("LABEL"))
+		GameTooltip:AddLine(L["Click for a waypoint."], ns.Host.Color("LABEL"))
 		GameTooltip:Show()
 	end)
 	row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1889,13 +1893,13 @@ local function BuildBox()
 	box.rows = {}
 	box.title = API.Text(box, "small", "LEFT")
 	box.title:SetPoint("TOPLEFT", PAD, -8)
-	box.title:SetTextColor(API.Accent())
+	ns.Host.Ink(box.title, "pop")
 	box.sub = API.Text(box, "tiny", "LEFT")
 	box.sub:SetPoint("TOPLEFT", box.title, "BOTTOMLEFT", 0, -4)
 	box.sub:SetPoint("RIGHT", box, "RIGHT", -PAD - 16, 0)
 	box.sub:SetJustifyH("LEFT")
 	box.sub:SetWordWrap(true)
-	box.sub:SetTextColor(TextColor("TEXT"))
+	ns.Host.Ink(box.sub, "TEXT")
 	box.close = API.Close(box, function() box:Hide() end, 14)
 	box.close:SetPoint("TOPRIGHT", -8, -7)
 	box.note = API.Text(box, "tiny", "LEFT")
@@ -1955,11 +1959,11 @@ do
 		return nil
 	end
 
-	-- Daylight UI's controller kit (Leaving / Returning keep its own note of the list right), checked.
+	-- Daylight UI's controller kit (Leaving / Returning keep its own note of the list right), through
+	-- Guide.lua's guarded ns.Pad (type-checked and pcall'd there, for a window it follows).
 	local function Kit(name, frame)
-		local P = DUI and DUI.Pad
-		local fn = type(P) == "table" and P[name] or nil
-		if type(fn) == "function" then pcall(fn, frame) end
+		local fn = ns.Pad and ns.Pad[name]
+		if type(fn) == "function" then fn(frame) end
 	end
 
 	-- On the game's list without the cursor: a popup that doesn't focus by itself. (Daylight UI's own
@@ -2069,8 +2073,10 @@ end
 function Fishing.CatchTooltip(tip, title)
 	local s = char and Session()
 	local n = s and s.caught or 0
-	if title then tip:SetText(L["This Session's Catch"]) end
-	tip:AddDoubleLine(L["Fish Caught"], tostring(n), 1, 1, 1, API.Accent())
+	-- (Any tooltip, a broker display's too: the lines in the look's roles, Host.Color.)
+	if title then tip:SetText(L["This Session's Catch"], ns.Host.Color("TITLE")) end
+	local r, g, b = ns.Host.Color("TEXT")
+	tip:AddDoubleLine(L["Fish Caught"], tostring(n), r, g, b, API.Accent())
 	if n == 0 then
 		tip:AddLine(L["Nothing caught yet."], TextColor("OFF"))
 		return
@@ -2079,7 +2085,7 @@ function Fishing.CatchTooltip(tip, title)
 	for i = 1, math.min(#list, MAX_LINES) do
 		local item = list[i]
 		local icon = item.icon and ("|T" .. item.icon .. ":14:14:0:0:64:64:5:59:5:59|t ") or ""
-		tip:AddDoubleLine(icon .. (item.link or item.name or "?"), "x" .. item.count, 1, 1, 1, TextColor("VALUE"))
+		tip:AddDoubleLine(icon .. (item.link or item.name or "?"), "x" .. item.count, r, g, b, TextColor("VALUE"))
 	end
 	if #list > MAX_LINES then
 		tip:AddLine(string.format(L["and %d more"], #list - MAX_LINES), TextColor("OFF"))
@@ -2106,6 +2112,8 @@ local function BuildPopup()
 	popup.title = API.Text(popup, "body", "LEFT")
 	popup.title:SetPoint("TOPLEFT", PAD, -9)
 	popup.rows = {}
+	-- (The menu's scale: Menu Size times Daylight UI's, Host.Scaled.)
+	ns.Host.Scaled(popup, { own = function() return Get("menuScale") or 1 end })
 	popup:SetScript("OnUpdate", function(self, elapsed)
 		self.age = self.age + elapsed
 		if self:IsMouseOver() and self.age > POPUP_IN then self.age = math.min(self.age, POPUP_IN + POPUP_HOLD) end
@@ -2167,7 +2175,7 @@ local function ShowPopup(caught, items)
 		popup.rows[i].text:Hide()
 	end
 	popup:SetSize(POPUP_W, 34 + shown * POPUP_ROW + (shown > 0 and 6 or 0))
-	popup:SetScale(Get("menuScale") or 1)
+	ns.Host.Rescale(popup)
 	popup:ClearAllPoints()
 	if panel and panel:IsVisible() and panel.onLeft then
 		-- (The catch list took the menu's left: the note goes beside it.)
@@ -2261,15 +2269,17 @@ if LDB then
 			Fishing.Toggle()
 		end,
 		OnTooltipShow = function(tip)
-			tip:AddLine(active and L["Fishing Mode: On"] or L["Fishing Mode: Off"])
+			-- (The display's own tooltip: the lines in the look's roles, Host.Color.)
+			tip:AddLine(active and L["Fishing Mode: On"] or L["Fishing Mode: Off"], ns.Host.Color("TITLE"))
+			local r, g, b = ns.Host.Color("TEXT")
 			local key = KeyText()
-			if key then tip:AddLine(L["Fishing Key: %s"]:format(key), 1, 1, 1) end
+			if key then tip:AddLine(L["Fishing Key: %s"]:format(key), r, g, b) end
 			local left = BaitLeft()
-			if active and left then tip:AddLine(string.format(L["Bait on the Pole: %d:%02d"], left / 60, left % 60), 1, 1, 1) end
+			if active and left then tip:AddLine(string.format(L["Bait on the Pole: %d:%02d"], left / 60, left % 60), r, g, b) end
 			tip:AddLine(" ")
 			Fishing.CatchTooltip(tip)
-			tip:AddLine(active and L["Click: turn Fishing Mode off"] or L["Click: turn Fishing Mode on"], 0.8, 0.8, 0.8)
-			tip:AddLine(L["Shift-right-click: clear this session's catch"], 0.8, 0.8, 0.8)
+			tip:AddLine(active and L["Click: turn Fishing Mode off"] or L["Click: turn Fishing Mode on"], r, g, b)
+			tip:AddLine(L["Shift-right-click: clear this session's catch"], r, g, b)
 		end,
 	})
 end
@@ -2377,9 +2387,10 @@ local function AskMastercraft()
 		text = L["Mastercraft puts your fishing pole back on after every fight, and Glowey's Fishing ends Fishing Mode in a fight. Which one handles fights while you fish?\n\nGlowey's Fishing turns off Mastercraft's \"After the fight: your fishing gear back on\". You can change this any time: Fishing > Fights While Fishing."],
 		button1 = L["Glowey's Fishing"],
 		button2 = L["Mastercraft"],
-		OnAccept = function() DUI:Set(ADDON, "mastercraftFights", true) end,
+		-- (Guarded: a failed save never breaks the game's popup.)
+		OnAccept = function() pcall(DUI.Set, DUI, ADDON, "mastercraftFights", true) end,
 		OnCancel = function(_, _, reason)
-			if reason == "clicked" then DUI:Set(ADDON, "mastercraftFights", false) end
+			if reason == "clicked" then pcall(DUI.Set, DUI, ADDON, "mastercraftFights", false) end
 		end,
 		timeout = 0, whileDead = true, hideOnEscape = false, preferredIndex = 3,
 	}
@@ -2639,10 +2650,9 @@ Fishing.SetKey = (function()
 		return key
 	end
 
+	-- A role's ink, kept through every look change (Host.Ink, Host.lua).
 	local function BoxInk(fs, name)
-		local ok, colors = pcall(API.Colors)
-		local c = ok and type(colors) == "table" and colors[name]
-		if type(c) == "table" then fs:SetTextColor(c[1], c[2], c[3]) end
+		ns.Host.Ink(fs, name)
 	end
 
 	local function KeyBoxLayout()
@@ -2741,6 +2751,8 @@ Fishing.SetKey = (function()
 		kb:SetPoint("CENTER", UIParent, "CENTER", 0, 120)
 		kb:SetClampedToScreen(true)
 		kb:EnableMouse(true)
+		-- (A free box on the screen: Daylight UI's scale, as its own windows, Host.Scaled.)
+		ns.Host.Scaled(kb, { own = 1 })
 		local head = API.Text(kb, "head", "LEFT")
 		head:SetPoint("TOPLEFT", kb, "TOPLEFT", 12, -12)
 		head:SetText(L["Fishing Key"])
@@ -2843,6 +2855,9 @@ function Fishing.FirstKey()
 end
 
 local function NotSound(get) return get("sound") == false end
+-- Rows about Daylight UI's own look and frames: not there without it (Host.lua). Without it the
+-- menu's opacity is the Glowey window opacity (General in /glowey).
+local function NoDaylight() return ns.standalone == true end
 
 local pages = {
 	{ id = "fishing", label = ns.GameText("PROFESSIONS_FISHING", L["Fishing"]),
@@ -2881,10 +2896,10 @@ local pages = {
 			  disabled = SubMenus.PadOff },
 		} },
 		{ label = L["Look"], items = {
-			{ type = "toggle", key = "duiOpacity", label = L["Use Daylight UI's Opacity"],
+			{ type = "toggle", key = "duiOpacity", label = L["Use Daylight UI's Opacity"], hidden = NoDaylight,
 			  desc = L["The fishing menu and its boxes follow Daylight UI's window opacity."] },
 			{ type = "slider", key = "opacity", label = L["Window Opacity"], min = 0.1, max = 1, step = 0.05, unit = "%",
-			  desc = L["How solid their backgrounds are, with Daylight UI's opacity off."],
+			  desc = L["How solid their backgrounds are, with Daylight UI's opacity off."], hidden = NoDaylight,
 			  disabled = function(get) return get("duiOpacity") ~= false end },
 		} },
 		{ label = L["Quiet Screen"], items = {
@@ -2908,7 +2923,7 @@ local pages = {
 			  disabled = function(get) return get("fadeUI") == false end },
 			{ type = "toggle", key = "catchPopup", label = L["Catch Popup"],
 			  desc = L["A note at the fishing menu's left after each cast: \"Fish Caught!\" with what came up, or \"Fish Got Away\"."] },
-			{ type = "toggle", key = "hideWater", label = L["Hide Daylight UI's Fishing Water"],
+			{ type = "toggle", key = "hideWater", label = L["Hide Daylight UI's Fishing Water"], hidden = NoDaylight,
 			  desc = L["The water and bobber Daylight UI draws along the bottom of the screen while your line is in. Hidden while Fishing Mode is on, and back as it was when it ends. Daylight UI's own switch for it stays in Quality of Life."] },
 		} },
 		{ label = L["Sound While Fishing"], items = {
@@ -2983,5 +2998,7 @@ me.On("StyleChanged", function()
 		menu.title:SetTextColor(API.Accent())
 		OutOfCombat(UpdateMenu)
 	end
+	-- (The trainer box's places and note, colored as it draws: drawn again while it shows.)
+	RefreshBox()
 	UpdateBroker()
 end)
