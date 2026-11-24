@@ -6,9 +6,8 @@ By Glowey. A standalone addon that **integrates with Daylight UI** when it's ins
 
 ---
 
-## New in 1.9.0
-- **Works without Daylight UI:** its settings are in Glowey's settings (**/glowey**), in Glowey's look or **Blizzard Style** (the game's own window frames, tabs, bars and scroll bars). With Daylight UI it follows its language, look and scale.
-- **Your settings are kept either way:** taking Daylight UI out, or putting it back, keeps them.
+## New in 1.9.1
+- **Lighter while you fish:** a catch no longer redraws what didn't change, the quiet screen's watcher rests when nothing uses it, and Fishing Mode only changes the game settings that aren't already as it wants them.
 ---
 
 ## Turn on Fishing Mode

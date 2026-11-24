@@ -28,8 +28,9 @@
 -- Daylight UI's window room), Spot (a window's spot in the settings, so in Daylight UI's profiles),
 -- AlertChoices / PlayAlert (alert sounds), Sound; MINOR 6, Blizzard Style's parts without Daylight UI
 -- (Blizzard, Chrome, Retitle, Dress, Tab, Inset, ScrollArt, Atlas, Looked: see H.Blizzard); MINOR 9,
--- option rows of type "custom" in the settings window (I.CustomRow) and CustomRows / RefreshOptions.
--- With Daylight UI they use its public API first,
+-- option rows of type "custom" in the settings window (I.CustomRow) and CustomRows / RefreshOptions;
+-- MINOR 11, a look change and the settings page drawn again at most once a frame (I.StyleSoon,
+-- I.RepaintSoon). With Daylight UI they use its public API first,
 -- and a few of its inside parts (Motion, Sound, Pad, Win.Feel / Win.Room) only after a type check,
 -- a version check (I.DuiAtLeast) and a pcall, with a fallback of the game's own.
 -- What only Daylight UI has (its own frames, tooltips, bags, profession window, test mode, fade,
@@ -45,10 +46,10 @@
 -- luacheck: globals SlashCmdList StaticPopupDialogs
 -- luacheck: read globals CreateFrame UIParent geterrorhandler SOUNDKIT PlaySound GetCursorPosition
 -- luacheck: read globals UISpecialFrames HideUIPanel C_AddOns time YES NO InCombatLockdown ReloadUI
--- luacheck: read globals StaticPopup_Show DEFAULT_CHAT_FRAME GameTooltip PlaySoundFile GetLocale
+-- luacheck: read globals StaticPopup_Show DEFAULT_CHAT_FRAME GameTooltip PlaySoundFile GetLocale C_Timer
 
 local ADDON, ns = ...
-local MINOR = 10
+local MINOR = 11
 
 local lib = _G.GloweyHost
 if type(lib) ~= "table" then
@@ -90,6 +91,9 @@ lib.impl = (function()
 
 	local I = { api = {}, me = {}, host = {} }
 	local A = I.api
+	-- Nothing, for a list that may be missing to be gone through as empty (only read, never filled).
+	local EMPTY = {}
+	I.EMPTY = EMPTY
 
 	local function T(key)
 		local L = S.L
@@ -276,7 +280,7 @@ lib.impl = (function()
 		if not rec or not rec.module or not rec.standalone or type(path) ~= "string" then return false end
 		SetPath(Store(rec).values, path, value)
 		I.Fire("SettingChanged", scope, path, value)
-		I.Repaint()
+		I.RepaintSoon()
 		return true
 	end
 
@@ -319,16 +323,39 @@ lib.impl = (function()
 		SaveGeneral()
 		if key == "minimap" then
 			I.MapButton()
-			return I.Repaint()
+			return I.RepaintSoon()
 		end
 		-- (The language each plugin's text is in was picked as it loaded: a reload shows a new one.)
 		if key == "language" then
 			if I.LangFile(value) ~= I.LangFile(S.locale) then S.needReload = true end
-			return I.Repaint()
+			return I.RepaintSoon()
 		end
 		-- (A plugin colors much of its own text once, as it draws it: a new look shows there in full
 		-- after a reload.)
 		if key == "look" and was ~= value then S.needReload = true end
+		S.colors = nil
+		I.StyleSoon()
+	end
+
+	-- A look change drawn: every shell, button and switch again, then StyleChanged (every ink, shell
+	-- and restyler a plugin asked for). At most once a frame, as Daylight UI does (DaylightUI/Core.lua:
+	-- NotifyStyleChanged): the color picker sets the accent at every move of the mouse, the opacity
+	-- slider at every step. While a slider is held it waits for the slider to be let go (MAKE.slider).
+	-- The value itself is saved at once (SaveGeneral); only the drawing waits.
+	function I.StyleSoon()
+		S.styleWanted = true
+		if S.sliding or S.stylePending then return end
+		if not (C_Timer and C_Timer.After) then return I.StyleNow() end
+		S.stylePending = true
+		C_Timer.After(0, function()
+			S.stylePending = nil
+			if not S.sliding then lib.impl.StyleNow() end
+		end)
+	end
+
+	function I.StyleNow()
+		if not S.styleWanted then return end
+		S.styleWanted = nil
 		I.RepaintAll()
 		I.Fire("StyleChanged")
 	end
@@ -340,14 +367,14 @@ lib.impl = (function()
 		for sw in pairs(S.switches) do if sw.Paint then Safe(sw.Paint) end end
 		if S.mapButton then I.MapPaint() end
 		I.RepaintBlizzard()
-		I.Repaint()
+		I.RepaintSoon()
 	end
 
 	-- Polestar changed its look: ours follows while it is Polestar's.
 	function I.PolestarChanged()
+		S.colors = nil
 		if I.Look() ~= "polestar" then return end
-		I.RepaintAll()
-		I.Fire("StyleChanged")
+		I.StyleSoon()
 	end
 
 	-- ---------------------------------------------------------------------------------------------
@@ -616,7 +643,7 @@ lib.impl = (function()
 		return { type = "dropdown", key = key, label = label, desc = desc, values = values, order = order }
 	end
 	function A.ClassColor(token)
-		local c = (_G.CUSTOM_CLASS_COLORS or _G.RAID_CLASS_COLORS or {})[token]
+		local c = (_G.CUSTOM_CLASS_COLORS or _G.RAID_CLASS_COLORS or EMPTY)[token]
 		if type(c) == "table" and c.r then return c.r, c.g, c.b end
 		return 1, 1, 1
 	end
@@ -683,13 +710,20 @@ lib.impl = (function()
 		return s
 	end
 
+	-- The look a shell is drawn in. (o.own: always ours, a color swatch; a frame Polestar couldn't
+	-- paint stays ours too.)
+	local function ShellLook(s)
+		local look = (s.opts and s.opts.own) and "glowey" or I.Look()
+		if look == "polestar" and s.psFailed then look = "glowey" end
+		return look
+	end
+
 	function I.PaintShell(frame)
 		local s = frame.__gloweySkin
 		if not s then return end
 		local o = s.opts or {}
-		-- (o.own: always ours, a color swatch; a frame Polestar couldn't paint stays ours too.)
-		local look = o.own and "glowey" or I.Look()
-		if look == "polestar" and s.psFailed then look = "glowey" end
+		local look = ShellLook(s)
+		s.paintedLook = look   -- (what I.Lit's quick way checks)
 		local own = look == "glowey"
 		local a = type(o.bgAlpha) == "number" and o.bgAlpha or (o.window and S.general.opacity) or 0.92
 		local c = type(o.color) == "table" and o.color
@@ -707,7 +741,7 @@ lib.impl = (function()
 		end
 		-- Another look: drawn on a layer frame of its own under the frame (one per look, so
 		-- going back and forth leaves nothing of one on the other), and lit by a wash on top.
-		for key, layer in pairs(s.layers or {}) do
+		for key, layer in pairs(s.layers or EMPTY) do
 			if key ~= look then layer:Hide() end
 		end
 		if own then
@@ -773,12 +807,12 @@ lib.impl = (function()
 	function I.LayerLevel(frame)
 		local s = frame.__gloweySkin
 		local level = math.max(0, (frame:GetFrameLevel() or 1) - 1)
-		for _, layer in pairs(s and s.layers or {}) do
+		for _, layer in pairs(s and s.layers or EMPTY) do
 			-- (Blizzard Style's art frames sit on their layer's level, under the frame's own; on the
 			-- frame's own level where the client lets them: I.Layer.)
 			if not layer.parentLevel then
 				layer:SetFrameLevel(level)
-				for _, art in pairs(layer.arts or {}) do art:SetFrameLevel(level) end
+				for _, art in pairs(layer.arts or EMPTY) do art:SetFrameLevel(level) end
 			end
 		end
 	end
@@ -847,11 +881,18 @@ lib.impl = (function()
 		return nil
 	end
 	-- An atlas the client has (C_Texture.GetAtlasInfo), put on a texture: true when it went on.
+	-- (Each answer kept: the client's atlases don't change while it runs.)
 	function I.HasAtlas(atlas)
 		local C = rawget(_G, "C_Texture")
 		if type(C) ~= "table" or type(C.GetAtlasInfo) ~= "function" then return false end
+		if atlas == nil then return false end
+		S.atlases = S.atlases or {}
+		local known = S.atlases[atlas]
+		if known ~= nil then return known end
 		local ok, info = pcall(C.GetAtlasInfo, atlas)
-		return ok and info ~= nil
+		known = (ok and info ~= nil) and true or false
+		S.atlases[atlas] = known
+		return known
 	end
 	function I.Atlas(tex, atlas, useSize)
 		if not I.HasAtlas(atlas) then return false end
@@ -1137,7 +1178,7 @@ lib.impl = (function()
 			end
 			if b.Paint then Safe(b.Paint) end
 		end
-		for _, region in ipairs(type(o.hide) == "table" and o.hide or {}) do
+		for _, region in ipairs(type(o.hide) == "table" and o.hide or EMPTY) do
 			if type(region) == "table" and region.SetAlpha then region:SetAlpha(on and 0 or 1) end
 		end
 		-- (The title bar is the window's too: it drags the window, as Blizzard's does.)
@@ -1271,7 +1312,7 @@ lib.impl = (function()
 	function I.Dress(b, kind, hide, size)
 		local on = I.Blizzard()
 		local done = I.Dressing(b, on and BZ[kind] or nil, size)
-		for _, region in ipairs(type(hide) == "table" and hide or {}) do
+		for _, region in ipairs(type(hide) == "table" and hide or EMPTY) do
 			if type(region) == "table" and region.SetAlpha then region:SetAlpha(done and 0 or 1) end
 		end
 		local s = b.__gloweySkin
@@ -1337,7 +1378,7 @@ lib.impl = (function()
 				t[k]:SetShown(on and ((hi and not selected) or (not hi and active == (selected and true or false))))
 			end
 		end
-		for _, region in ipairs(type(hide) == "table" and hide or {}) do
+		for _, region in ipairs(type(hide) == "table" and hide or EMPTY) do
 			if type(region) == "table" and region.SetAlpha then region:SetAlpha(on and 0 or 1) end
 		end
 		return on
@@ -1414,9 +1455,13 @@ lib.impl = (function()
 			bar:Hide()
 			return true
 		end
-		bar:ClearAllPoints()
-		bar:SetPoint("TOP", along, "TOPRIGHT", -(x or 4), 0)
-		bar:SetPoint("BOTTOM", along, "BOTTOMRIGHT", -(x or 4), 0)
+		-- (Placed again only when its place changes: this runs at every scroll.)
+		if bar.__along ~= along or bar.__x ~= (x or 4) then
+			bar.__along, bar.__x = along, x or 4
+			bar:ClearAllPoints()
+			bar:SetPoint("TOP", along, "TOPRIGHT", -(x or 4), 0)
+			bar:SetPoint("BOTTOM", along, "BOTTOMRIGHT", -(x or 4), 0)
+		end
 		local view = math.max(1, c.view())
 		bar.__syncing = true
 		pcall(bar.SetVisibleExtentPercentage, bar, Fraction(view / (view + range)))
@@ -1433,7 +1478,7 @@ lib.impl = (function()
 		local on = I.Blizzard() and I.HasAtlas(SCROLL_PARTS[5])
 		-- (The game's own bar when it can be made; the picture below is only its stand-in.)
 		if on and I.RealScrollBar(thumb, along, x, ctl) then
-			for _, t in ipairs(thumb.__bzScroll or {}) do t:Hide() end
+			for _, t in ipairs(thumb.__bzScroll or EMPTY) do t:Hide() end
 			return true
 		end
 		if thumb.__bzBar then thumb.__bzBar:Hide() end
@@ -1456,7 +1501,7 @@ lib.impl = (function()
 			thumb.__bzScroll = a
 		end
 		local shown = on and thumb:IsShown()
-		for _, t in ipairs(a or {}) do t:SetShown(shown) end
+		for _, t in ipairs(a or EMPTY) do t:SetShown(shown) end
 		return on
 	end
 
@@ -1592,12 +1637,24 @@ lib.impl = (function()
 		s.hi:Show()
 	end
 
-	-- Lights a shell's edge in the accent (hover, focus, picked), or puts it back.
+	-- Lights a shell's edge in the accent (hover, focus, picked), or puts it back. (Runs at every
+	-- hover: when the shell was last drawn in the look it is in now, only what shows the lit state
+	-- is drawn again, the edges in Glowey's look, the wash in another, just as I.PaintShell draws
+	-- them. Anything else that changes a shell draws it in full.)
 	function I.Lit(frame, on)
 		local s = frame.__gloweySkin
 		if not s then return end
 		s.lit = on and true or nil
-		I.PaintShell(frame)
+		local look = s.paintedLook
+		if look == nil or look ~= ShellLook(s) then return I.PaintShell(frame) end
+		if look == "glowey" then
+			local r, g, b = 0.24, 0.24, 0.27
+			if s.lit then r, g, b = A.Accent() end
+			for _, e in ipairs(s.edges) do e:SetColorTexture(r, g, b, 1) end
+		else
+			local o = s.opts or EMPTY
+			I.LitWash(frame, s, look, o.kind or (o.window and "window") or "panel")
+		end
 	end
 
 	-- ---------------------------------------------------------------------------------------------
@@ -2517,10 +2574,12 @@ lib.impl = (function()
 		w.thumb:SetAlpha(I.ScrollArt(w.thumb, w.scroll, -8.5) and 0 or 1)
 	end
 
-	function I.Rail()
+	-- entries: the rail's (Entries()), when the caller has them already.
+	function I.Rail(entries)
 		local w = S.win
 		local y = 0
-		for i, e in ipairs(Entries()) do
+		entries = entries or Entries()
+		for i, e in ipairs(entries) do
 			local b = w.railButtons[i]
 			if not b then
 				b = CreateFrame("Button", nil, w.rail)
@@ -2577,13 +2636,13 @@ lib.impl = (function()
 			b:Show()
 			y = y + 22
 		end
-		for i = #Entries() + 1, #w.railButtons do w.railButtons[i]:Hide() end
+		for i = #entries + 1, #w.railButtons do w.railButtons[i]:Hide() end
 	end
 
 	-- The page picked now: its record (nil for General) and its definition.
-	local function Picked()
+	local function Picked(entries)
 		if S.page and S.page ~= "general" then
-			for _, e in ipairs(Entries()) do
+			for _, e in ipairs(entries or Entries()) do
 				if e.kind == "page" and (e.rec.name .. "." .. tostring(e.page.id)) == S.page then return e.rec, e.page end
 			end
 		end
@@ -2659,19 +2718,22 @@ lib.impl = (function()
 		-- Without it the thumb can't be dragged nor the track clicked.)
 		s:EnableMouse(true)
 		s:EnableMouseWheel(false)
-		-- (Held: the page waits to be drawn again, I.Repaint. Let go, it is drawn once.)
+		-- (Held: the page and a look change wait to be drawn again, I.Repaint and I.StyleSoon. Let
+		-- go, each is drawn once.)
 		s:SetScript("OnMouseDown", function() S.sliding = true end)
 		s:SetScript("OnMouseUp", function()
 			S.sliding = nil
-			if S.repaintWanted then
-				S.repaintWanted = nil
-				lib.impl.Repaint()
-			end
+			local page = S.repaintWanted
+			S.repaintWanted = nil
+			if S.styleWanted then lib.impl.StyleNow() end
+			if page then lib.impl.RepaintSoon() end
 		end)
 		s:HookScript("OnHide", function()
 			if S.sliding then
 				S.sliding = nil
 				S.repaintWanted = nil
+				-- (A look change made while it was held is still drawn, the next frame.)
+				if S.styleWanted then lib.impl.StyleSoon() end
 			end
 		end)
 		s.track = s:CreateTexture(nil, "BACKGROUND")
@@ -2832,11 +2894,11 @@ lib.impl = (function()
 		local function Put(v)
 			if type(item.set) == "function" then
 				Safe(item.set, v)
-				lib.impl.Repaint()
+				lib.impl.RepaintSoon()
 			elseif item.key then
 				set(item.key, v)
 			end
-			if item.reload then S.needReload = true; lib.impl.Repaint() end
+			if item.reload then S.needReload = true; lib.impl.RepaintSoon() end
 		end
 		local off = Value(item.disabled, get) and true or false
 		local label = Words(T(Value(item.label) or ""))
@@ -2895,13 +2957,26 @@ lib.impl = (function()
 				table.sort(order, function(a, b) return tostring(values[a]) < tostring(values[b]) end)
 			end
 			local font = type(item.fontOf) == "function" and cur ~= nil and Value(item.fontOf, cur) or nil
-			f.button.text:SetFont(type(font) == "string" and font or A.Font(), SIZES.body, "")
+			font = type(font) == "string" and font or A.Font()
+			f.button.text:SetFont(font, SIZES.body, "")
 			-- (As wide as its longest choice needs, the arrow's room included, never under 200 nor over
-			-- most of the row: no choice is cut, on the button or in its menu.)
+			-- most of the row: no choice is cut, on the button or in its menu. Measured again only when
+			-- the choices or the font change: kept per values table, with the choices' words and the
+			-- font it was measured in.)
+			local words = { font }
+			for i, k in ipairs(order) do words[i + 1] = type(values[k]) == "string" and values[k] or tostring(k) end
+			local sig = table.concat(words, "\n")
+			S.dropWidths = S.dropWidths or setmetatable({}, { __mode = "k" })
+			local known = S.dropWidths[values]
 			local widest = 0
-			for _, k in ipairs(order) do
-				f.button.text:SetText(type(values[k]) == "string" and values[k] or tostring(k))
-				widest = math.max(widest, math.ceil(f.button.text:GetUnboundedStringWidth() or 0))
+			if known and known.sig == sig then
+				widest = known.widest
+			else
+				for i = 2, #words do
+					f.button.text:SetText(words[i])
+					widest = math.max(widest, math.ceil(f.button.text:GetUnboundedStringWidth() or 0))
+				end
+				S.dropWidths[values] = { sig = sig, widest = widest }
 			end
 			local bw = math.max(200, math.min(math.floor(width * 0.6), widest + 44))
 			f.button:SetWidth(bw)
@@ -2951,7 +3026,7 @@ lib.impl = (function()
 				if type(fn) ~= "function" then return end
 				local function Go()
 					Safe(fn)
-					lib.impl.Repaint()
+					lib.impl.RepaintSoon()
 				end
 				if item.confirm then Confirm(label .. "?", Go) else Go() end
 			end)
@@ -2972,15 +3047,33 @@ lib.impl = (function()
 		if not ok and geterrorhandler then geterrorhandler()(err) end
 	end
 
+	-- The page drawn again after a change, once a frame however many changes come in it (a color
+	-- picker's drag sets a color at every move of the mouse). Opening the window or another page
+	-- draws it at once (I.Repaint).
+	function I.RepaintSoon()
+		local w = S.win
+		if not w or not w:IsShown() or S.painting then return end
+		if S.sliding then S.repaintWanted = true return end
+		if S.repaintPending then return end
+		if not (C_Timer and C_Timer.After) then return I.Repaint() end
+		S.repaintPending = true
+		C_Timer.After(0, function()
+			S.repaintPending = nil
+			lib.impl.Repaint()
+		end)
+	end
+
 	function I.PaintPage()
 		local w = S.win
 		for _, pool in pairs(w.pools) do
 			for i = 1, #pool do pool[i]:Hide() end
 			pool.n = 0
 		end
-		I.Rail()
+		-- (The rail's entries, made once for the whole paint.)
+		local entries = Entries()
+		I.Rail(entries)
 		S.paintN = (S.paintN or 0) + 1
-		local rec, page = Picked()
+		local rec, page = Picked(entries)
 		local ctx = { width = w.body:GetWidth(), page = page }
 		if rec then
 			local scope = rec.name
@@ -3002,7 +3095,7 @@ lib.impl = (function()
 		Ink(head.desc, "TEXT")
 		head:SetHeight(26 + dh)
 		local y = 26 + dh + 18
-		for _, group in ipairs(page.groups or {}) do
+		for _, group in ipairs(page.groups or EMPTY) do
 			if not Value(group.hidden, ctx.get) then
 				local glabel = Value(group.label)
 				if type(glabel) == "string" and glabel ~= "" then
@@ -3019,7 +3112,7 @@ lib.impl = (function()
 					g:SetHeight(20 + gh)
 					y = y + 20 + gh + 10
 				end
-				for _, item in ipairs(group.items or {}) do
+				for _, item in ipairs(group.items or EMPTY) do
 					if type(item) == "table" and not Value(item.hidden, ctx.get) then
 						local ok, ny = pcall(Row, item, ctx, y)
 						if ok then y = ny elseif geterrorhandler then geterrorhandler()(ny) end
@@ -3029,7 +3122,7 @@ lib.impl = (function()
 			end
 		end
 		-- (Custom rows not drawn this time: another page's, or hidden now.)
-		for _, f in pairs(w.customs or {}) do
+		for _, f in pairs(w.customs or EMPTY) do
 			if f.paintN ~= S.paintN then f:Hide() end
 		end
 		w.body:SetHeight(math.max(y, 10))
@@ -3127,7 +3220,7 @@ lib.impl = (function()
 	-- the settings window here, else Daylight UI's (its OptionsPanel.Refresh, Options/Panel.lua:656,
 	-- which runs every row's update and lays the page out again). Nothing when it is closed.
 	function H.RefreshOptions(host)
-		if host.standalone then return I.Repaint() end
+		if host.standalone then return I.RepaintSoon() end
 		local P = I.Kit("OptionsPanel")
 		if I.KitFn(P, "IsShown") and I.KitFn(P, "Refresh") then
 			pcall(function() if P.IsShown() then P.Refresh() end end)
@@ -3223,6 +3316,12 @@ lib.impl = (function()
 	function I.RoleColor(role, colors)
 		local api = I.Api()
 		if role == "pop" then return api.Accent() end
+		-- (Without Daylight UI and with no colors given: the one ink straight, as API.Colors() would
+		-- have it, with no table of them all made for it.)
+		if colors == nil and api == lib.API then
+			local c = I.InkOf(INK[role] and role or "TEXT")
+			return c[1] or 1, c[2] or 1, c[3] or 1
+		end
 		colors = colors or api.Colors()
 		local c = type(colors) == "table" and (colors[role] or colors.TEXT)
 		if type(c) == "table" then return c[1] or 1, c[2] or 1, c[3] or 1 end
@@ -3251,9 +3350,20 @@ lib.impl = (function()
 		end
 	end
 
+	-- API.Colors() for this file's own reading (Restyle, tooltips). Without Daylight UI, one table
+	-- kept until the look changes (SetGeneral, PolestarChanged, Restyle): never handed to a plugin
+	-- (API.Colors() still makes each caller a table of its own), never changed.
+	function I.ColorsNow()
+		local api = I.Api()
+		if api ~= lib.API then return api.Colors() end
+		if not S.colors then S.colors = A.Colors() end
+		return S.colors
+	end
+
 	function I.Restyle()
 		local api = I.Api()
-		local okC, colors = pcall(api.Colors)
+		S.colors = nil
+		local okC, colors = pcall(I.ColorsNow)
 		colors = okC and colors or nil
 		for region, e in pairs(S.inks) do pcall(I.PaintInk, region, e, colors) end
 		for frame, opts in pairs(S.skinned) do pcall(api.Skin, frame, opts) end
@@ -3261,9 +3371,16 @@ lib.impl = (function()
 		I.RescaleAll()
 	end
 
-	local function Track(region, e)
+	-- (A region tracked again keeps its entry: a plugin may ink the same text at every update.)
+	local function Track(region, role, alpha, how)
 		if type(region) ~= "table" then return end
-		S.inks[region] = e
+		local e = S.inks[region]
+		if e then
+			e.role, e.alpha, e.how = role, alpha, how
+		else
+			e = { role = role, alpha = alpha, how = how }
+			S.inks[region] = e
+		end
 		I.HookStyle()
 		pcall(I.PaintInk, region, e)
 	end
@@ -3271,13 +3388,13 @@ lib.impl = (function()
 	-- A font string in a role's color, now and after every look change.
 	function H.Ink(_, fs, role, alpha)
 		if type(fs) ~= "table" or type(fs.SetTextColor) ~= "function" then return end
-		Track(fs, { role = role or "TEXT", alpha = alpha, how = "text" })
+		Track(fs, role or "TEXT", alpha, "text")
 	end
 	-- A texture in a role's color (SetColorTexture; vertex = true: SetVertexColor, for a texture
 	-- with art of its own), now and after every look change.
 	function H.Tint(_, tex, role, alpha, vertex)
 		if type(tex) ~= "table" or type(tex.SetVertexColor) ~= "function" then return end
-		Track(tex, { role = role or "TEXT", alpha = alpha, how = vertex and "vertex" or "color" })
+		Track(tex, role or "TEXT", alpha, vertex and "vertex" or "color")
 	end
 	-- Stops following the look (the region's color is the caller's again).
 	function H.Untrack(_, region) if region then S.inks[region] = nil end end
@@ -3381,7 +3498,7 @@ lib.impl = (function()
 		local tip = GameTooltip
 		if not tip or type(owner) ~= "table" or type(fn) ~= "function" then return end
 		tip:SetOwner(owner, anchor or "ANCHOR_RIGHT")
-		local okC, colors = pcall(I.Api().Colors)
+		local okC, colors = pcall(I.ColorsNow)
 		colors = okC and colors or nil
 		local t = {}
 		function t.Line(text, role, wrap)

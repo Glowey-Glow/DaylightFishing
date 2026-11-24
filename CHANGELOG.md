@@ -1,5 +1,9 @@
 # Glowey's Fishing
 
+## 1.9.1
+- Lighter while you fish: each catch no longer redraws the menu, the catch list and the popup's frame when nothing they show changed, the quiet screen's watcher stops when Fade the UI While Fishing and Hide Daylight UI's Fishing Water are both off and checks what to keep visible once a second (at once when a bag, popup or the loot window opens), and the line's events are only listened to while Fishing Mode is on.
+- Fishing Mode only changes (and later puts back) the sound, Soft Interact and Auto Loot settings that aren't already as it wants them.
+
 ## 1.9.0
 - Follows Daylight UI's language, look and scale when it's installed: the menu, its lists, the key box and the tooltips take its colors and repaint when you change its look, and the menu's size goes with Daylight UI's own scale. Without it, its own Language choice and the look picked in /glowey.
 - Without Daylight UI: dropdown menus fit their words. Each menu is as wide as its longest choice, its rows are as tall as the font, and in Blizzard Style it keeps the game's own margins (8 at the sides and top, 15 at the foot), so the last choice no longer runs past the bottom edge. Menus are solid, so the setting underneath no longer shows through.

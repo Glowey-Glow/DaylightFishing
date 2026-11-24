@@ -87,8 +87,15 @@ end
 -- Our menu and boxes in DaylightUI's window shell. The background follows DaylightUI's window
 -- opacity, or with "Use DaylightUI's opacity" off, the one on our page. Each frame is remembered
 -- (weakly) so a change to either, or to DaylightUI's look, dresses them all again at once.
+-- A window is dressed when it is built, and again only when its size or scale changed (the
+-- shell is laid out for them) or the look or the opacity did (again: ReskinWindows). Dressing is
+-- the dearest part of a redraw, and every catch used to dress three windows.
 local shells = setmetatable({}, { __mode = "k" })
-local function SkinWindow(frame)
+local function SkinWindow(frame, again)
+	local w, h = frame:GetSize()
+	local k = frame:GetEffectiveScale()
+	if not again and shells[frame] and frame.dfDressed == w .. ":" .. h .. ":" .. k then return end
+	frame.dfDressed = w .. ":" .. h .. ":" .. k
 	shells[frame] = true
 	if Get("duiOpacity") == false then
 		API.Skin(frame, { window = true, bgAlpha = Get("opacity") })
@@ -97,7 +104,7 @@ local function SkinWindow(frame)
 	end
 end
 local function ReskinWindows()
-	for frame in pairs(shells) do SkinWindow(frame) end
+	for frame in pairs(shells) do SkinWindow(frame, true) end
 end
 me.On("SettingChanged", function(scope, path)
 	if scope == ADDON and (path == "duiOpacity" or path == "opacity") then ReskinWindows() end
@@ -204,6 +211,13 @@ local function Wanted()
 	return want
 end
 
+local function SameValue(a, b)
+	if a == nil or b == nil then return false end
+	if tostring(a) == tostring(b) then return true end
+	local x, y = tonumber(a), tonumber(b)
+	return x ~= nil and y ~= nil and math.abs(x - y) < 1e-4
+end
+
 local function ApplySettings()
 	db.saved = db.saved or {}
 	local want = Wanted()
@@ -214,20 +228,16 @@ local function ApplySettings()
 			db.saved[name] = nil
 		end
 	end
+	-- One that is already as wanted is left alone, and not saved: only what was changed is
+	-- given back when Fishing Mode ends.
 	for name, value in pairs(want) do
-		if db.saved[name] == nil then
-			local ok, old = pcall(GetCVar, name)
-			if ok and old ~= nil then db.saved[name] = old end
+		local ok, now = pcall(GetCVar, name)
+		now = ok and now or nil
+		if not SameValue(now, value) then
+			if db.saved[name] == nil and now ~= nil then db.saved[name] = now end
+			pcall(SetCVar, name, value)
 		end
-		pcall(SetCVar, name, value)
 	end
-end
-
-local function SameValue(a, b)
-	if a == nil or b == nil then return false end
-	if tostring(a) == tostring(b) then return true end
-	local x, y = tonumber(a), tonumber(b)
-	return x ~= nil and y ~= nil and math.abs(x - y) < 1e-4
 end
 
 -- Each saved setting back to how it was. Never in a fight: the game blocks SetCVar there (a
@@ -525,10 +535,25 @@ local function BuildMenu()
 end
 
 -- The baits, the cast button and the menu's size. Out of combat (the buttons are secure).
-function UpdateMenu()
+-- fromBags: called for a bag event, which comes after every catch: when the baits, their counts
+-- and the weapons owed are what the menu already shows, nothing is done (no secure attributes
+-- set again, no layout, no catch list).
+function UpdateMenu(fromBags)
 	if not menu or InCombatLockdown() then return end
-	ns.Host.Rescale(menu)
 	local baits = BaitsInBags()
+	local owed = {}
+	local w = char and Get("restoreWeapons") and char.weapons
+	if type(w) == "table" then
+		for _, link in ipairs({ w[1], w[2] }) do
+			if type(link) == "string" then owed[#owed + 1] = link end
+		end
+	end
+	local sig = {}
+	for i, bait in ipairs(baits) do sig[i] = bait.id .. "x" .. bait.count end
+	sig = table.concat(sig, ",") .. "|" .. table.concat(owed, ",")
+	if fromBags == true and sig == menu.drawn then return end
+	menu.drawn = sig
+	ns.Host.Rescale(menu)
 	local x = PAD
 	local top = -26 - SKILL_H
 	for i, bait in ipairs(baits) do
@@ -558,14 +583,7 @@ function UpdateMenu()
 	cast:SetAttribute("macrotext", "/cast " .. FishingName())
 	cast.key:SetText(KeyText() or "")
 	cast.state:SetText(channeling and L["Hook"] or L["Cast"])
-	-- Weapon Swap, at the right: the weapons that go back on when Fishing Mode ends.
-	local owed = {}
-	local w = char and Get("restoreWeapons") and char.weapons
-	if type(w) == "table" then
-		for _, link in ipairs({ w[1], w[2] }) do
-			if type(link) == "string" then owed[#owed + 1] = link end
-		end
-	end
+	-- Weapon Swap, at the right: the weapons that go back on when Fishing Mode ends (owed, above).
 	local swapW = 0
 	if #owed > 0 then
 		swapW = math.max(#owed * SIZE + (#owed - 1) * GAP, math.ceil(menu.swap:GetStringWidth()))
@@ -585,10 +603,12 @@ function UpdateMenu()
 	menu.swap:ClearAllPoints()
 	menu.swap:SetPoint("TOP", menu, "TOPLEFT", right, top - CAST_SIZE - 3)
 	menu.swap:SetShown(#owed > 0)
-	UpdateCatch()
+	UpdateCatch(true)
 	UpdateSkill()
 	menu:SetSize(width, -top + CAST_SIZE + 26)
 	SkinWindow(menu)
+	-- (The catch list beside it, once the menu has its size: only when that or the catch changed.)
+	RefreshPanel(true)
 end
 
 local function ShowMenu(show)
@@ -615,6 +635,8 @@ end
 
 local fader = CreateFrame("Frame")
 fader:Hide()
+-- The addon's events (registered under Events, below; made here so Fishing Mode can reach it).
+local events = CreateFrame("Frame")
 local fade = 0             -- 0: the UI as it is, 1: faded as far as the setting says
 local stillSince           -- when you last stood still with nothing open
 local FADE_OUT, FADE_IN = 0.6, 0.2
@@ -650,7 +672,7 @@ local function DropAll()
 	liftedOn = false
 end
 
--- The frames' names, made once (LiftAll runs four times a second while the UI is faded).
+-- The frames' names, made once (LiftAll runs once a second while the UI is faded).
 local POPUP_NAMES, CHAT_NAMES, BAG_NAMES = {}, {}, {}
 for i = 1, 4 do POPUP_NAMES[i] = "StaticPopup" .. i end
 for i = 1, NUM_CHAT_WINDOWS or 10 do
@@ -718,18 +740,28 @@ end
 -- UI is faded, and what they had before after: Polestar's target button faces.
 local followed = {}        -- model -> its alpha before
 
-local function FollowModels()
-	local i = 1
-	while true do
-		local row = _G["PolestarTargetRow" .. i]
-		if not row then break end
-		local m = row.Model
-		if type(m) == "table" and m.SetAlpha and row.GetEffectiveAlpha then
-			if followed[m] == nil then followed[m] = m:GetAlpha() or 1 end
-			local a = row:GetEffectiveAlpha()
-			if type(a) == "number" then m:SetAlpha(followed[m] * a) end
+-- (The rows' names are made once each, and kept: this runs every frame while the UI fades.)
+local FollowModels
+do
+	local names = {}
+	function FollowModels()
+		local i = 1
+		while true do
+			local name = names[i]
+			if not name then
+				name = "PolestarTargetRow" .. i
+				names[i] = name
+			end
+			local row = _G[name]
+			if not row then break end
+			local m = row.Model
+			if type(m) == "table" and m.SetAlpha and row.GetEffectiveAlpha then
+				if followed[m] == nil then followed[m] = m:GetAlpha() or 1 end
+				local a = row:GetEffectiveAlpha()
+				if type(a) == "number" then m:SetAlpha(followed[m] * a) end
+			end
+			i = i + 1
 		end
-		i = i + 1
 	end
 end
 
@@ -749,6 +781,10 @@ local function TipFromFaded()
 	if type(a) == "number" and a < 0.05 then GameTooltip:Hide() end
 end
 GameTooltip:HookScript("OnShow", TipFromFaded)
+-- A popup or a bag opening while the UI is faded comes out of the fade on the next frame.
+for _, name in ipairs({ "StaticPopup_Show", "OpenAllBags", "ToggleAllBags", "ToggleBackpack", "ToggleBag", "OpenBag" }) do
+	if type(_G[name]) == "function" then _G.hooksecurefunc(name, function() fader.relift = true end) end
+end
 
 -- UIParent's alpha, DaylightUI's way, so its portraits fade with the rest; else UIParent's own.
 -- DaylightUI 1.9.5+ keeps one alpha per owner (its AFK screen "afk", its NPC scene "npc") and
@@ -832,8 +868,17 @@ local function KeepWater()
 	end
 end
 
+-- The watcher. It stops by itself when it has nothing to do: Fade the UI and the water's setting
+-- both off, and nothing of ours faded, lifted or held (a setting turned on starts it again:
+-- SettingChanged, below). While the UI is faded, what must stay out of the fade (a popup, a bag,
+-- the loot window) is looked for once a second, and at once when one of them opens (fader.relift).
 local relift = 0
 fader:SetScript("OnUpdate", function(_, elapsed)
+	if not Get("fadeUI") and Get("hideWater") == false and fade <= 0 and not liftedOn and not fader.afkHeld then
+		KeepWater()
+		fader:Hide()
+		return
+	end
 	KeepWater()
 	-- DaylightUI's AFK screen has the UI then, and gives it back whole: nothing of ours stays over it.
 	if AfkScreen() then
@@ -852,8 +897,8 @@ fader:SetScript("OnUpdate", function(_, elapsed)
 	end
 	if liftedOn then
 		relift = relift + elapsed
-		if relift > 0.25 then
-			relift = 0
+		if relift > 1 or fader.relift then
+			relift, fader.relift = 0, nil
 			LiftAll()
 			FollowModels()
 			TipFromFaded()
@@ -1122,6 +1167,7 @@ local function Enter(resuming)
 	end
 	active = true
 	char.active = true
+	events.Fishing(true)
 	BuildMenu()
 	ApplySettings()
 	ShowMenu(true)
@@ -1140,6 +1186,7 @@ local function Leave(reason)
 	if not active then return end
 	active, equipping, channeling = false, false, false
 	char.active = nil
+	events.Fishing(false)
 	fader:Hide()
 	Unfade()
 	KeepWater()
@@ -1273,14 +1320,15 @@ local function Caught()
 	return char and Session().caught or 0
 end
 
-function UpdateCatch()
+-- noPanel: the menu's own count only (UpdateMenu draws the catch list after it has its size).
+function UpdateCatch(noPanel)
 	if menu and menu.catch then
 		local n = Caught()
 		menu.catch.text:SetText(L["Caught %d"]:format(n))
 		menu.catch.text:SetTextColor(TextColor(n > 0 and "VALUE" or "OFF"))
 		menu.catch:SetWidth(math.max(40, math.ceil(menu.catch.text:GetStringWidth()) + 4))
 	end
-	RefreshPanel()
+	if noPanel ~= true then RefreshPanel() end
 end
 
 function Fishing.ResetCatch()
@@ -1348,10 +1396,14 @@ local function PanelRow(i)
 	return row
 end
 
-function RefreshPanel()
+-- ifChanged: only when the catch, or the menu's width or place, changed since it was drawn.
+function RefreshPanel(ifChanged)
 	if not panel or not panel:IsShown() then return end
-	local list = Fishing.SortedCatch()
 	local n = Caught()
+	local drawn = n .. ":" .. math.floor(menu:GetWidth() + 0.5) .. ":" .. math.floor((menu:GetLeft() or 0) + 0.5)
+	if ifChanged == true and panel.drawn == drawn then return end
+	panel.drawn = drawn
+	local list = Fishing.SortedCatch()
 	local items = 0
 	for _, item in ipairs(list) do items = items + item.count end
 	panel.total:SetText(L["%s, %s"]:format(Plural(n, L["%d catch"], L["%d catches"], L["%d catches#few"]),
@@ -1606,7 +1658,7 @@ local function BookName(rank)
 	local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(rank.item)
 	if name and name ~= "" then return name end
 	if C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(rank.item) end
-	return rank.itemName
+	return rank.itemName, true   -- (true: the game's own name is still on its way)
 end
 
 local function QuestName(rank)
@@ -1614,7 +1666,7 @@ local function QuestName(rank)
 	local name = C_QuestLog.GetTitleForQuestID and C_QuestLog.GetTitleForQuestID(rank.quest)
 	if name and name ~= "" then return name end
 	if C_QuestLog.RequestLoadQuestByID then C_QuestLog.RequestLoadQuestByID(rank.quest) end
-	return rank.questName
+	return rank.questName, true
 end
 
 -- A rank's heading: "Expert Fishing - Up to 225".
@@ -1881,6 +1933,16 @@ function RefreshBox()
 		box:SetPoint("BOTTOMLEFT", menu, "TOPLEFT", 0, 6)
 	end
 	SkinWindow(box)
+	-- (Not English: the name events are heard while the book's or quest's name is missing.)
+	if not ENGLISH then
+		local missing = false
+		if rank and rank.how == "book" then
+			missing = select(2, BookName(rank)) == true
+		elseif rank and rank.how == "quest" then
+			missing = select(2, QuestName(rank)) == true
+		end
+		events.Names(missing)
+	end
 end
 
 local function BuildBox()
@@ -1905,6 +1967,7 @@ local function BuildBox()
 	box.note = API.Text(box, "tiny", "LEFT")
 	box.note:SetTextColor(TextColor("OFF"))
 	box:SetScript("OnShow", RefreshBox)
+	box:HookScript("OnHide", function() events.Names(false) end)
 	-- A controller (Guide.lua's Pad): the cursor moves over the places, closest first; A sets the
 	-- waypoint, B closes the box (kept open by Trainer Box Always On, B only gives the cursor back
 	-- to the game).
@@ -2288,26 +2351,41 @@ end
 -- Events
 -- ---------------------------------------------------------------------------------------------
 
-local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
-events:RegisterEvent("BAG_UPDATE_DELAYED")
 events:RegisterEvent("LOOT_READY")
 events:RegisterEvent("LOOT_OPENED")
 events:RegisterEvent("LOOT_CLOSED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
-events:RegisterEvent("UI_ERROR_MESSAGE")
-events:RegisterEvent("UI_INFO_MESSAGE")
-events:RegisterEvent("PLAYER_STARTED_MOVING")
 events:RegisterEvent("SKILL_LINES_CHANGED")
 events:RegisterEvent("CHAT_MSG_SKILL")
-events:RegisterUnitEvent("UNIT_SPELLCAST_SENT", "player")
-events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
-events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
-if not ENGLISH then
-	events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-	events:RegisterEvent("QUEST_DATA_LOAD_RESULT")
+
+-- Only while Fishing Mode is on (Enter and Leave): the line's own events, moving, the game's "got
+-- away" messages, and the bags (the menu's baits; a bag opening, for the quiet screen). The loot
+-- and skill events stay: a catch counts, and the trainer box follows, with Fishing Mode off too.
+events.fishingOnly = { "BAG_UPDATE_DELAYED", "BAG_OPEN", "UI_ERROR_MESSAGE", "UI_INFO_MESSAGE",
+	"PLAYER_STARTED_MOVING" }
+events.fishingUnit = { "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP" }
+function events.Fishing(on)
+	for _, e in ipairs(events.fishingOnly) do
+		if on then pcall(events.RegisterEvent, events, e) else pcall(events.UnregisterEvent, events, e) end
+	end
+	for _, e in ipairs(events.fishingUnit) do
+		if on then events:RegisterUnitEvent(e, "player") else events:UnregisterEvent(e) end
+	end
+end
+
+-- The book's and the quest's names in the game's language (not English): heard only while the
+-- trainer box shows and one of them is still missing (RefreshBox), not for every item the game
+-- loads anywhere.
+function events.Names(on)
+	on = on == true and not ENGLISH
+	if on == (events.namesOn == true) then return end
+	events.namesOn = on
+	for _, e in ipairs({ "GET_ITEM_INFO_RECEIVED", "QUEST_DATA_LOAD_RESULT" }) do
+		if on then events:RegisterEvent(e) else events:UnregisterEvent(e) end
+	end
 end
 
 local function IsFishing(spellID)
@@ -2535,6 +2613,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 		return
 	end
 	if event == "LOOT_READY" or event == "LOOT_OPENED" then
+		-- (The loot window comes out of the faded UI on the next frame, not at the next look.)
+		if event == "LOOT_OPENED" then fader.relift = true end
 		TakeCatch()
 	elseif event == "LOOT_CLOSED" then
 		looting = false
@@ -2581,9 +2661,11 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 			bagsQueued = true
 			OutOfCombat(function()
 				bagsQueued = false
-				if active and menu and menu:IsShown() then UpdateMenu() end
+				if active and menu and menu:IsShown() then UpdateMenu(true) end
 			end)
 		end
+	elseif event == "BAG_OPEN" then
+		fader.relift = true
 	elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
 		if active and IsFishing(c) then
 			channeling = true
@@ -2972,6 +3054,8 @@ _G.SlashCmdList.GLOWEYFISH = function() Fishing.Toggle() end
 
 me.On("SettingChanged", function(scope, path)
 	if scope ~= ADDON or not active then return end
+	-- (The quiet screen's watcher stops when it has nothing to do: a change may give it work.)
+	if path == nil or path == "fadeUI" or path == "hideWater" then fader:Show() end
 	if path == "key" then
 		OutOfCombat(function() UpdateBinding(); UpdateMenu() end)
 	elseif path == "fadeAlpha" then
