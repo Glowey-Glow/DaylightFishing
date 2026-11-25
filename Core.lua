@@ -503,9 +503,11 @@ local function BuildMenu()
 
 	me.RegisterMover(menu, "menu", L["Fishing Menu"], { "CENTER", UIParent, "CENTER", 0, -190 })
 
-	-- The bait left on the pole, every second while the menu shows.
+	-- The bait left on the pole, every second while the menu shows and bait is on; the line's bar
+	-- every frame while a line is out. With neither, it rests: woken (menu.Wake) as the menu shows,
+	-- a line goes out, or the bags change (a bait put on).
 	local tick = 1
-	menu:SetScript("OnUpdate", function(_, elapsed)
+	local function Step(_, elapsed)
 		local name, startMS, endMS
 		if channeling then
 			local _
@@ -530,8 +532,16 @@ local function BuildMenu()
 		else
 			menu.lure:SetText(L["No bait on"])
 			menu.lure:SetTextColor(TextColor("OFF"))
+			if not channeling then menu:SetScript("OnUpdate", nil) end
 		end
-	end)
+	end
+	function menu.Wake()
+		if not menu:IsShown() then return end
+		tick = 1
+		menu:SetScript("OnUpdate", Step)
+	end
+	menu:HookScript("OnShow", menu.Wake)
+	menu:HookScript("OnHide", function() menu:SetScript("OnUpdate", nil) end)
 end
 
 -- The baits, the cast button and the menu's size. Out of combat (the buttons are secure).
@@ -594,7 +604,7 @@ function UpdateMenu(fromBags)
 	for i, link in ipairs(owed) do
 		local b = WeaponButton(i)
 		b.link = link
-		b.icon:SetTexture(C_Item.GetItemIconByID(link) or (GetItemIcon and GetItemIcon(link)))
+		b.icon:SetTexture(C_Item.GetItemIconByID(link) or (_G.GetItemIcon and _G.GetItemIcon(link)))
 		b:ClearAllPoints()
 		b:SetPoint("TOPLEFT", menu, "TOPLEFT", wx + (i - 1) * (SIZE + GAP), top - (CAST_SIZE - SIZE) / 2)
 		b:Show()
@@ -743,7 +753,7 @@ local followed = {}        -- model -> its alpha before
 -- (The rows' names are made once each, and kept: this runs every frame while the UI fades.)
 local FollowModels
 do
-	local names = {}
+	local names, hooked = {}, {}
 	function FollowModels()
 		local i = 1
 		while true do
@@ -754,6 +764,11 @@ do
 			end
 			local row = _G[name]
 			if not row then break end
+			-- (A row showing while the UI is faded is followed then: no steady look.)
+			if not hooked[row] and row.HookScript then
+				hooked[row] = true
+				row:HookScript("OnShow", function() if fade > 0 then FollowModels() end end)
+			end
 			local m = row.Model
 			if type(m) == "table" and m.SetAlpha and row.GetEffectiveAlpha then
 				if followed[m] == nil then followed[m] = m:GetAlpha() or 1 end
@@ -775,15 +790,15 @@ end
 -- sight is hidden. Not one owned by the screen itself (the bobber's, a mob's in the world).
 local function TipFromFaded()
 	if fade <= 0 or not GameTooltip:IsShown() then return end
-	local owner = GameTooltip:GetOwner()
-	if not owner or owner == UIParent or owner == WorldFrame or not owner.GetEffectiveAlpha then return end
-	local a = owner:GetEffectiveAlpha()
+	local tipOwner = GameTooltip:GetOwner()
+	if not tipOwner or tipOwner == UIParent or tipOwner == WorldFrame or not tipOwner.GetEffectiveAlpha then return end
+	local a = tipOwner:GetEffectiveAlpha()
 	if type(a) == "number" and a < 0.05 then GameTooltip:Hide() end
 end
 GameTooltip:HookScript("OnShow", TipFromFaded)
 -- A popup or a bag opening while the UI is faded comes out of the fade on the next frame.
 for _, name in ipairs({ "StaticPopup_Show", "OpenAllBags", "ToggleAllBags", "ToggleBackpack", "ToggleBag", "OpenBag" }) do
-	if type(_G[name]) == "function" then _G.hooksecurefunc(name, function() fader.relift = true end) end
+	if type(_G[name]) == "function" then _G.hooksecurefunc(name, function() fader.Relift() end) end
 end
 
 -- UIParent's alpha, DaylightUI's way, so its portraits fade with the rest; else UIParent's own.
@@ -847,7 +862,13 @@ local function WantFade()
 		return Get("fadeMoving") ~= false and fade > 0
 	end
 	stillSince = stillSince or GetTime()
-	return GetTime() - stillSince >= (tonumber(Get("fadeDelay")) or 2)
+	local wait = (tonumber(Get("fadeDelay")) or 2) - (GetTime() - stillSince)
+	if wait > 0 then
+		-- (Standing still, not long enough yet: the watcher rests, woken once when it's time.)
+		fader.WakeIn(wait)
+		return false
+	end
+	return true
 end
 
 -- DaylightUI's "Fishing water" (its Quality of Life module): the water along the bottom of the
@@ -868,14 +889,60 @@ local function KeepWater()
 	end
 end
 
--- The watcher. It stops by itself when it has nothing to do: Fade the UI and the water's setting
--- both off, and nothing of ours faded, lifted or held (a setting turned on starts it again:
--- SettingChanged, below). While the UI is faded, what must stay out of the fade (a popup, a bag,
--- the loot window) is looked for once a second, and at once when one of them opens (fader.relift).
-local relift = 0
+-- The watcher. It runs only while there's something to do: the UI fading out or in, a fall (a jump
+-- or a drop: you may land still), or a window to lift out of the fade. Settled (faded all the way,
+-- or not at all), it hides itself and is woken (fader.Wake) by what can change that: you starting
+-- or stopping moving, the still time running out (one timer), the AFK screen showing or going, a
+-- chat line being typed, a tour starting or ending, a popup, a bag, the loot window or the bank
+-- opening (fader.relift), a setting (SettingChanged, below), Fishing Mode itself. It also stops
+-- when it has nothing to do at all: Fade the UI and the water's setting both off, and nothing of
+-- ours faded, lifted or held.
+fader.stillToken = 0
+function fader.Wake()
+	if not active then return end
+	-- DaylightUI's AFK screen (made the first time you go AFK): heard as it shows and goes.
+	local afk = _G.DaylightUIAfkScreen
+	if not fader.afkHooked and type(afk) == "table" and afk.HookScript then
+		fader.afkHooked = true
+		afk:HookScript("OnShow", fader.Wake)
+		afk:HookScript("OnHide", fader.Wake)
+	end
+	fader:Show()
+end
+-- Once, in a moment (the still time running out). A newer call replaces an older one.
+function fader.WakeIn(wait)
+	fader.stillToken = fader.stillToken + 1
+	local mine = fader.stillToken
+	C_Timer.After(wait + 0.01, function()
+		if mine == fader.stillToken then fader.Wake() end
+	end)
+end
+-- A window to lift out of the fade (a popup, a bag, the loot window, the bank): on the next frame.
+function fader.Relift()
+	fader.relift = true
+	fader.Wake()
+end
+-- Typing a chat line holds the UI (with "Keep the chat" off): heard as the box opens and closes.
+do
+	local util = _G.ChatFrameUtil
+	if type(util) == "table" then
+		for _, fn in ipairs({ "ActivateChat", "DeactivateChat" }) do
+			if type(util[fn]) == "function" then _G.hooksecurefunc(util, fn, function() fader.Wake() end) end
+		end
+	end
+	for _, fn in ipairs({ "ChatEdit_ActivateChat", "ChatEdit_DeactivateChat", "JumpOrAscendStart" }) do
+		if type(_G[fn]) == "function" then _G.hooksecurefunc(fn, function() fader.Wake() end) end
+	end
+end
+
 fader:SetScript("OnUpdate", function(_, elapsed)
 	if not Get("fadeUI") and Get("hideWater") == false and fade <= 0 and not liftedOn and not fader.afkHeld then
 		KeepWater()
+		fader:Hide()
+		return
+	end
+	-- (While the AFK screen is up nothing changes here: rests, woken as it goes.)
+	if fader.afkHeld and AfkScreen() then
 		fader:Hide()
 		return
 	end
@@ -895,17 +962,18 @@ fader:SetScript("OnUpdate", function(_, elapsed)
 		fader.afkHeld = nil
 		ns.UIAlpha(1)
 	end
-	if liftedOn then
-		relift = relift + elapsed
-		if relift > 1 or fader.relift then
-			relift, fader.relift = 0, nil
-			LiftAll()
-			FollowModels()
-			TipFromFaded()
-		end
+	if liftedOn and fader.relift then
+		LiftAll()
+		FollowModels()
+		TipFromFaded()
 	end
+	fader.relift = nil
 	local target = WantFade() and 1 or 0
-	if target == fade then return end
+	if target == fade then
+		-- Settled: rests until woken (a fall keeps it looking until you land).
+		if not IsFalling() then fader:Hide() end
+		return
+	end
 	if target > fade then
 		SetFade(math.min(1, fade + elapsed / FADE_OUT))
 	else
@@ -1073,7 +1141,9 @@ local function BuildNotice()
 	notice.text:SetWordWrap(false)
 	-- (The menu's scale: Menu Size times Daylight UI's, Host.Scaled.)
 	ns.Host.Scaled(notice, { own = function() return Get("menuScale") or 1 end })
-	notice:SetScript("OnUpdate", function(self, elapsed)
+	-- (The fade runs only while it shows; faded out over a menu the fight kept, the note stays as an
+	-- empty guard for the mouse with nothing running, and goes with the menu: its OnHide, below.)
+	notice.Step = function(self, elapsed)
 		self.age = self.age + elapsed
 		local a
 		if self.age < NOTICE_IN then
@@ -1089,9 +1159,12 @@ local function BuildNotice()
 			return
 		end
 		self:SetAlpha(0)
-		if MenuKept() then return end
+		if MenuKept() then
+			self:SetScript("OnUpdate", nil)
+			return
+		end
 		HideNotice()
-	end)
+	end
 end
 
 local function ShowNotice()
@@ -1114,7 +1187,14 @@ local function ShowNotice()
 	SkinWindow(notice)
 	notice.age = 0
 	notice:SetAlpha(0)
+	notice:SetScript("OnUpdate", notice.Step)
 	notice:Show()
+	if menu and not notice.menuHooked then
+		notice.menuHooked = true
+		menu:HookScript("OnHide", function()
+			if notice:IsShown() and not notice:GetScript("OnUpdate") then HideNotice() end
+		end)
+	end
 end
 
 -- A fight that ended Fishing Mode: a pole going on during it or just after (another addon may put
@@ -1172,7 +1252,7 @@ local function Enter(resuming)
 	ApplySettings()
 	ShowMenu(true)
 	SubMenus.Sync()
-	fader:Show()
+	fader.Wake()
 	UpdateBroker()
 	-- (The first time, on this account: the tour of the menu that just showed. Guide.lua)
 	if ns.Guide then ns.Guide.Offer("fishing") end
@@ -1226,6 +1306,8 @@ end
 -- away when the tour ends, unless Fishing Mode came on meanwhile. Out of a fight only (the menu
 -- holds secure buttons).
 function Fishing.TourPreview(on)
+	-- (The quiet screen holds off while a tour runs: looked at again once it has started or ended.)
+	C_Timer.After(0, fader.Wake)
 	if InCombatLockdown() then return end
 	BuildMenu()
 	if on then
@@ -2365,8 +2447,9 @@ events:RegisterEvent("CHAT_MSG_SKILL")
 -- away" messages, and the bags (the menu's baits; a bag opening, for the quiet screen). The loot
 -- and skill events stay: a catch counts, and the trainer box follows, with Fishing Mode off too.
 events.fishingOnly = { "BAG_UPDATE_DELAYED", "BAG_OPEN", "UI_ERROR_MESSAGE", "UI_INFO_MESSAGE",
-	"PLAYER_STARTED_MOVING" }
-events.fishingUnit = { "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP" }
+	"PLAYER_STARTED_MOVING", "PLAYER_STOPPED_MOVING", "PLAYER_FLAGS_CHANGED", "BANKFRAME_OPENED" }
+events.fishingUnit = { "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_CHANNEL_START", "UNIT_SPELLCAST_CHANNEL_STOP",
+	"UNIT_INVENTORY_CHANGED" }
 function events.Fishing(on)
 	for _, e in ipairs(events.fishingOnly) do
 		if on then pcall(events.RegisterEvent, events, e) else pcall(events.UnregisterEvent, events, e) end
@@ -2614,7 +2697,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 	end
 	if event == "LOOT_READY" or event == "LOOT_OPENED" then
 		-- (The loot window comes out of the faded UI on the next frame, not at the next look.)
-		if event == "LOOT_OPENED" then fader.relift = true end
+		if event == "LOOT_OPENED" then fader.Relift() end
 		TakeCatch()
 	elseif event == "LOOT_CLOSED" then
 		looting = false
@@ -2657,6 +2740,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 			Leave("unequipped")
 		end
 	elseif event == "BAG_UPDATE_DELAYED" then
+		-- (A bait put on uses one up: the bait's time shows again.)
+		if menu and menu.Wake then menu.Wake() end
 		if active and menu and not bagsQueued then
 			bagsQueued = true
 			OutOfCombat(function()
@@ -2664,8 +2749,8 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 				if active and menu and menu:IsShown() then UpdateMenu(true) end
 			end)
 		end
-	elseif event == "BAG_OPEN" then
-		fader.relift = true
+	elseif event == "BAG_OPEN" or event == "BANKFRAME_OPENED" then
+		fader.Relift()
 	elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
 		if active and IsFishing(c) then
 			channeling = true
@@ -2673,6 +2758,7 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 			pendingCast, castMoved = nil, false
 			UpdateBinding()
 			if cast then cast.state:SetText(L["Hook"]) end
+			if menu and menu.Wake then menu.Wake() end
 		end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
 		if channeling then
@@ -2694,6 +2780,16 @@ events:SetScript("OnEvent", function(_, event, a, b, c, d)
 		if RefreshBox then RefreshBox() end
 	elseif event == "PLAYER_STARTED_MOVING" then
 		if channeling then castMoved = true end
+		fader.Wake()
+	elseif event == "PLAYER_STOPPED_MOVING" then
+		fader.Wake()
+	elseif event == "UNIT_INVENTORY_CHANGED" then
+		-- (A bait put on the pole from something kept, a hat: the bait's time shows again.)
+		if menu and menu.Wake then menu.Wake() end
+	elseif event == "PLAYER_FLAGS_CHANGED" then
+		-- (AFK: DaylightUI's screen may be made just now; looked at again in a moment.)
+		fader.Wake()
+		C_Timer.After(0.5, fader.Wake)
 	elseif event == "UNIT_SPELLCAST_SENT" then
 		if channeling and not IsFishing(d) then castMoved = true end
 	elseif event == "UI_ERROR_MESSAGE" or event == "UI_INFO_MESSAGE" then
@@ -2930,7 +3026,10 @@ function Fishing.FirstKey()
 		end
 	end
 	if busy then
-		C_Timer.After(5, Fishing.FirstKey)
+		-- (Looked at again every 5 seconds for ten minutes at most: still busy then, it asks at the
+		-- next login instead of looking all session.)
+		Fishing.firstKeyTries = (Fishing.firstKeyTries or 0) + 1
+		if Fishing.firstKeyTries <= 120 then C_Timer.After(5, Fishing.FirstKey) end
 		return
 	end
 	Fishing.SetKey(true)
@@ -3055,7 +3154,7 @@ _G.SlashCmdList.GLOWEYFISH = function() Fishing.Toggle() end
 me.On("SettingChanged", function(scope, path)
 	if scope ~= ADDON or not active then return end
 	-- (The quiet screen's watcher stops when it has nothing to do: a change may give it work.)
-	if path == nil or path == "fadeUI" or path == "hideWater" then fader:Show() end
+	if path ~= "key" then fader.Wake() end
 	if path == "key" then
 		OutOfCombat(function() UpdateBinding(); UpdateMenu() end)
 	elseif path == "fadeAlpha" then

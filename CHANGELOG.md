@@ -1,5 +1,9 @@
 # Glowey's Fishing
 
+## 1.9.2
+- No more checking every frame while you fish. The quiet screen's fade now runs only while it fades out or back in (or while you fall), and wakes on moving, the still delay, AFK, chat, a jump or a window opening. The fishing menu runs every frame only while your line is out (the cast bar), once a second while bait is on, and not at all otherwise.
+- The combat notice no longer keeps running after it has faded, and the first-time key question stops asking after ten minutes of you being busy (it asks at the next login instead).
+
 ## 1.9.1
 - Lighter while you fish: each catch no longer redraws the menu, the catch list and the popup's frame when nothing they show changed, the quiet screen's watcher stops when Fade the UI While Fishing and Hide Daylight UI's Fishing Water are both off and checks what to keep visible once a second (at once when a bag, popup or the loot window opens), and the line's events are only listened to while Fishing Mode is on.
 - Fishing Mode only changes (and later puts back) the sound, Soft Interact and Auto Loot settings that aren't already as it wants them.

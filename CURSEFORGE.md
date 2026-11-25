@@ -6,8 +6,8 @@ By Glowey. A standalone addon that **integrates with Daylight UI** when it's ins
 
 ---
 
-## New in 1.9.1
-- **Lighter while you fish:** a catch no longer redraws what didn't change, the quiet screen's watcher rests when nothing uses it, and Fishing Mode only changes the game settings that aren't already as it wants them.
+## New in 1.9.2
+- **Smoother while fishing:** the quiet screen and the fishing menu no longer check anything every frame unless something is moving on screen.
 ---
 
 ## Turn on Fishing Mode
