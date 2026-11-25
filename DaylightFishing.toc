@@ -13,6 +13,7 @@
 # Glowey's Plugins window as it loads.)
 ## LoadSavedVariablesFirst: 1
 
+ErrorTag.lua
 Libs\LibStub\LibStub.lua
 Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
 Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
