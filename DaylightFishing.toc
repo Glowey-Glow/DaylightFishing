@@ -25,6 +25,7 @@ Locales\ruRU.lua
 Locales\koKR.lua
 Locales\zhCN.lua
 Host.lua
+Hub.lua
 Update.lua
 Guide.lua
 FishingGuide.lua

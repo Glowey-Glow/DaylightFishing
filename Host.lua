@@ -31,7 +31,8 @@
 -- option rows of type "custom" in the settings window (I.CustomRow) and CustomRows / RefreshOptions;
 -- MINOR 11, a look change and the settings page drawn again at most once a frame (I.StyleSoon,
 -- I.RepaintSoon); MINOR 12, its dropdown takes no click outside itself (a press elsewhere closes
--- it and still reaches what was pressed). With Daylight UI they use its public API first,
+-- it and still reaches what was pressed); MINOR 13, OpenOptions opens the plugin's place under the
+-- "Glowey's" entry first (Hub.lua). With Daylight UI they use its public API first,
 -- and a few of its inside parts (Motion, Sound, Pad, Win.Feel / Win.Room) only after a type check,
 -- a version check (I.DuiAtLeast) and a pcall, with a fallback of the game's own.
 -- What only Daylight UI has (its own frames, tooltips, bags, profession window, test mode, fade,
@@ -50,7 +51,7 @@
 -- luacheck: read globals StaticPopup_Show DEFAULT_CHAT_FRAME GameTooltip PlaySoundFile GetLocale C_Timer
 
 local ADDON, ns = ...
-local MINOR = 12
+local MINOR = 13
 
 local lib = _G.GloweyHost
 if type(lib) ~= "table" then
@@ -3206,6 +3207,11 @@ lib.impl = (function()
 	function H.OpenOptions(host, pageId)
 		if host.standalone then return I.OpenOptions(host.addon, pageId) end
 		local P = _G.DaylightUI and _G.DaylightUI.OptionsPanel
+		-- (Under the "Glowey's" entry its pages are listed while it's the open plugin: Hub.lua.)
+		local hub = _G.GloweyHub
+		if type(hub) == "table" and type(hub.impl) == "table" and type(hub.impl.Open) == "function" then
+			pcall(hub.impl.Open, host.addon)
+		end
 		if pageId and type(P) == "table" and type(P.Show) == "function" then
 			if pcall(P.Show, host.addon .. "." .. pageId) then return end
 		end

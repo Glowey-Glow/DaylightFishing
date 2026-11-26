@@ -1,5 +1,8 @@
 # Glowey's Fishing
 
+## 1.10.0
+- With another of Glowey's plugins on, Fishing's pages sit under one "Glowey's" entry on Daylight UI's options rail, each plugin a page there.
+
 ## 1.9.4
 - The welcome no longer keeps asking every 5 seconds for the whole session while Daylight UI is busy: it gives up after ten minutes and asks at the next login.
 

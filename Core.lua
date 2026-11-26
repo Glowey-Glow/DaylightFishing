@@ -3134,15 +3134,27 @@ if ns.UpdateGroup and pages[1] then table.insert(pages[1].groups, ns.UpdateGroup
 if ns.Guide and ns.Guide.HelpGroup and pages[1] then table.insert(pages[1].groups, ns.Guide.HelpGroup()) end
 
 pcall(function()
-	DUI:RegisterPlugin(ADDON, {
-		title = "Glowey's Fishing",
-		icon = "Interface\\AddOns\\" .. ADDON .. "\\Media\\icon-glyph.png",
-		needs = { 1, 1 },
-		short = L["Fishing"],
-		color = { 0.4, 0.8, 1 },
-		blurb = L["Fishing Mode: your pole, your bait and one key to fish."],
-	})
-	DUI:RegisterModule(ADDON, { plugin = ADDON, label = ns.GameText("PROFESSIONS_FISHING", L["Fishing"]), defaults = DEFAULTS, options = { pages = pages } })
+	-- (With Daylight UI and another of Glowey's plugins on, its pages go under one "Glowey's" entry
+	-- on the options rail: Hub.lua.)
+	local spec = { addon = ADDON, dui = DUI,
+		plugin = {
+			title = "Glowey's Fishing",
+			icon = "Interface\\AddOns\\" .. ADDON .. "\\Media\\icon-glyph.png",
+			needs = { 1, 1 },
+			short = L["Fishing"],
+			color = { 0.4, 0.8, 1 },
+			blurb = L["Fishing Mode: your pole, your bait and one key to fish."],
+		},
+		module = { plugin = ADDON, label = ns.GameText("PROFESSIONS_FISHING", L["Fishing"]), defaults = DEFAULTS, options = { pages = pages } },
+		words = { open = L["Open"], pages = L["Its settings, a page each."] },
+		hubIcon = "Interface\\AddOns\\" .. ADDON .. "\\Media\\glowey-hub.png",
+		hubBlurb = L["Glowey's plugins, in one place."],
+		hubDesc = L["Glowey's plugins, in one place."],
+	}
+	if ns.Hub then ns.Hub.Join(spec) else
+		DUI:RegisterPlugin(ADDON, spec.plugin)
+		DUI:RegisterModule(ADDON, spec.module)
+	end
 end)
 
 me.RegisterCommand("fish", function() Fishing.Toggle() end, L["Turn Fishing Mode on or off."])
