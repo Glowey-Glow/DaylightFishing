@@ -397,17 +397,25 @@ local function BuildLayer()
 	card.skip:SetPoint("BOTTOMLEFT", EDGE, EDGE)
 	card.skip:SetScript("OnClick", function() Guide.Skip() end)
 
-	-- Escape skips; every other key goes on to the game.
+	-- Escape skips; every other key goes on to the game. Escape is kept only for its own press:
+	-- the card lets keys through again on the next frame and each time it shows, since in a fight
+	-- that can't be changed, and a card left keeping keys would hold every key of the fight.
 	card:EnableKeyboard(true)
+	local function PassKeys()
+		if not InCombatLockdown() then card:SetPropagateKeyboardInput(true) end
+	end
 	card:SetScript("OnKeyDown", function(self, key)
 		if InCombatLockdown() then return end
 		if key == "ESCAPE" then
 			self:SetPropagateKeyboardInput(false)
+			C_Timer.After(0, PassKeys)
 			Guide.Skip()
 		else
 			self:SetPropagateKeyboardInput(true)
 		end
 	end)
+	card:HookScript("OnShow", PassKeys)
+	PassKeys()
 
 	-- A controller: the cursor on the card (Next first), B skips (Done on the last card). Its button
 	-- bar goes under the card, above the dim.

@@ -30,7 +30,8 @@
 -- (Blizzard, Chrome, Retitle, Dress, Tab, Inset, ScrollArt, Atlas, Looked: see H.Blizzard); MINOR 9,
 -- option rows of type "custom" in the settings window (I.CustomRow) and CustomRows / RefreshOptions;
 -- MINOR 11, a look change and the settings page drawn again at most once a frame (I.StyleSoon,
--- I.RepaintSoon). With Daylight UI they use its public API first,
+-- I.RepaintSoon); MINOR 12, its dropdown takes no click outside itself (a press elsewhere closes
+-- it and still reaches what was pressed). With Daylight UI they use its public API first,
 -- and a few of its inside parts (Motion, Sound, Pad, Win.Feel / Win.Room) only after a type check,
 -- a version check (I.DuiAtLeast) and a pcall, with a fallback of the game's own.
 -- What only Daylight UI has (its own frames, tooltips, bags, profession window, test mode, fade,
@@ -49,7 +50,7 @@
 -- luacheck: read globals StaticPopup_Show DEFAULT_CHAT_FRAME GameTooltip PlaySoundFile GetLocale C_Timer
 
 local ADDON, ns = ...
-local MINOR = 11
+local MINOR = 12
 
 local lib = _G.GloweyHost
 if type(lib) ~= "table" then
@@ -2004,14 +2005,18 @@ lib.impl = (function()
 			m:EnableMouseWheel(true)
 			A.Skin(m, { bgAlpha = 0.97, kind = "menu" })
 			m.rows = {}
-			m.catch = CreateFrame("Button", nil, UIParent)
-			m.catch:SetAllPoints(UIParent)
-			m.catch:SetFrameStrata("FULLSCREEN_DIALOG")
-			m.catch:SetFrameLevel(1)
-			m.catch:RegisterForClicks("AnyUp")
-			m.catch:SetScript("OnClick", function() m:Hide() end)
-			m.catch:Hide()
-			m:SetScript("OnHide", function() m.catch:Hide() end)
+			-- A press outside it closes it and still goes on to what was pressed (the game's own
+			-- menus close this way, Blizzard_Menu's GLOBAL_MOUSE_DOWN): nothing over the screen
+			-- takes the click. Not a press on its owner, whose own click opens and closes it.
+			-- Heard only while it's open.
+			m:SetScript("OnShow", function(self) self:RegisterEvent("GLOBAL_MOUSE_DOWN") end)
+			m:SetScript("OnHide", function(self) self:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
+			m:SetScript("OnEvent", function(self)
+				if self:IsMouseOver() then return end
+				local o = self.owner
+				if o and o.IsVisible and o:IsVisible() and o:IsMouseOver() then return end
+				self:Hide()
+			end)
 			m:SetScript("OnMouseWheel", function(_, d) lib.impl.MenuScroll(-d) end)
 			m:Hide()
 			if type(UISpecialFrames) == "table" then table.insert(UISpecialFrames, "GloweyHostMenu") end
@@ -2036,7 +2041,6 @@ lib.impl = (function()
 			m:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2)
 		end
 		m:SetFrameLevel(10)
-		m.catch:Show()
 		m:Show()
 		I.MenuPaint()
 	end

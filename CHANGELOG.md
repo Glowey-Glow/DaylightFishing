@@ -1,5 +1,10 @@
 # Glowey's Fishing
 
+## 1.9.3
+- Settings dropdowns no longer catch the click outside them: a click on a data text, an addon drawer or anything else closes the menu and reaches what you clicked the first time.
+- After Escape closes a tour card, the card no longer keeps your keys to itself (it could stop movement keys in a later fight).
+- BugSack reports now end with this addon's name and version on its own errors, so a report says which version it came from.
+
 ## 1.9.2
 - No more checking every frame while you fish. The quiet screen's fade now runs only while it fades out or back in (or while you fall), and wakes on moving, the still delay, AFK, chat, a jump or a window opening. The fishing menu runs every frame only while your line is out (the cast bar), once a second while bait is on, and not at all otherwise.
 - The combat notice no longer keeps running after it has faded, and the first-time key question stops asking after ten minutes of you being busy (it asks at the next login instead).
