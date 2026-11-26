@@ -682,7 +682,7 @@ local function DropAll()
 	liftedOn = false
 end
 
--- The frames' names, made once (LiftAll runs once a second while the UI is faded).
+-- The frames' names, made once (LiftAll runs once per fade, and again when something lifted needs it).
 local POPUP_NAMES, CHAT_NAMES, BAG_NAMES = {}, {}, {}
 for i = 1, 4 do POPUP_NAMES[i] = "StaticPopup" .. i end
 for i = 1, NUM_CHAT_WINDOWS or 10 do

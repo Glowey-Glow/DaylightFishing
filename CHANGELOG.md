@@ -1,5 +1,8 @@
 # Glowey's Fishing
 
+## 1.9.4
+- The welcome no longer keeps asking every 5 seconds for the whole session while Daylight UI is busy: it gives up after ten minutes and asks at the next login.
+
 ## 1.9.3
 - Settings dropdowns no longer catch the click outside them: a click on a data text, an addon drawer or anything else closes the menu and reaches what you clicked the first time.
 - After Escape closes a tour card, the card no longer keeps your keys to itself (it could stop movement keys in a later fight).
