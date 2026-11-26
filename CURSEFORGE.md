@@ -6,8 +6,8 @@ By Glowey. A standalone addon that **integrates with Daylight UI** when it's ins
 
 ---
 
-## New in 1.9.2
-- **Smoother while fishing:** the quiet screen and the fishing menu no longer check anything every frame unless something is moving on screen.
+## New in 1.10.0
+- **Glowey's on the options rail:** with another of Glowey's plugins on, they all sit under one "Glowey's" entry, each plugin a page there.
 ---
 
 ## Turn on Fishing Mode
