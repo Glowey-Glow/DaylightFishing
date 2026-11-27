@@ -1,5 +1,8 @@
 # Glowey's Fishing
 
+## 1.10.1
+- Translations: every text is now in all six languages (German, Spanish, French, Korean, Russian and Chinese), the Glowey's plugins window included.
+
 ## 1.10.0
 - With another of Glowey's plugins on, Fishing's pages sit under one "Glowey's" entry on Daylight UI's options rail, each plugin a page there.
 

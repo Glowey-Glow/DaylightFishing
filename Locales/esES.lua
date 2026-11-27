@@ -302,3 +302,8 @@ L["Click: open the settings"] = "Clic: abrir los ajustes"
 L["Right-click: move frames"] = "Clic derecho: mover marcos"
 L["Drag: move this button"] = "Arrastrar: mover este botón"
 L["Works without Daylight UI: its settings are in Glowey's settings (/glowey), in Glowey's look or Blizzard Style. With Daylight UI it follows its language, look and scale."] = "Funciona sin Daylight UI: sus ajustes están en los ajustes de Glowey (/glowey), con el aspecto de Glowey o el Estilo Blizzard. Con Daylight UI sigue su idioma, su aspecto y su escala."
+
+-- Added 2026-11-26 (translation sweep): machine draft.
+L["Glowey's plugins, in one place."] = "Los complementos de Glowey, en un solo lugar."
+L["Its settings, a page each."] = "Sus ajustes, una página para cada uno."
+L["Open"] = "Abrir"

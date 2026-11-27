@@ -302,3 +302,8 @@ L["Click: open the settings"] = "클릭: 설정 열기"
 L["Right-click: move frames"] = "오른쪽 클릭: 프레임 이동"
 L["Drag: move this button"] = "끌기: 이 버튼 이동"
 L["Works without Daylight UI: its settings are in Glowey's settings (/glowey), in Glowey's look or Blizzard Style. With Daylight UI it follows its language, look and scale."] = "Daylight UI 없이도 작동합니다: 설정은 Glowey 설정(/glowey)에 있으며, Glowey 모양이나 블리자드 스타일로 표시됩니다. Daylight UI가 있으면 그 언어, 모양, 크기를 따릅니다."
+
+-- Added 2026-11-26 (translation sweep): machine draft.
+L["Glowey's plugins, in one place."] = "Glowey 플러그인을 한곳에."
+L["Its settings, a page each."] = "설정마다 페이지가 하나씩."
+L["Open"] = "열기"

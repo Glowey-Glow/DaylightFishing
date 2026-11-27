@@ -302,3 +302,8 @@ L["Click: open the settings"] = "点击：打开设置"
 L["Right-click: move frames"] = "右键点击：移动框体"
 L["Drag: move this button"] = "拖动：移动此按钮"
 L["Works without Daylight UI: its settings are in Glowey's settings (/glowey), in Glowey's look or Blizzard Style. With Daylight UI it follows its language, look and scale."] = "无需Daylight UI也能使用：其设置位于Glowey的设置（/glowey）中，可用Glowey外观或暴雪风格。装有Daylight UI时会跟随它的语言、外观和缩放。"
+
+-- Added 2026-11-26 (translation sweep): machine draft.
+L["Glowey's plugins, in one place."] = "Glowey的扩展，集中一处。"
+L["Its settings, a page each."] = "它的设置，每项一页。"
+L["Open"] = "打开"
