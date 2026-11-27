@@ -9,8 +9,6 @@ By Glowey. A standalone addon that **integrates with Daylight UI** when it's ins
 ## New in 1.10.1
 - **Every text in all six languages:** German, Spanish, French, Korean, Russian and Chinese.
 
-## New in 1.10.0
-- **Glowey's on the options rail:** with another of Glowey's plugins on, they all sit under one "Glowey's" entry, each plugin a page there.
 ---
 
 ## Turn on Fishing Mode
